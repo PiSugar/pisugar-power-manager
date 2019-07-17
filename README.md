@@ -1,1 +1,1 @@
-# sugar-power-manager
+# pisugar-power-manager
