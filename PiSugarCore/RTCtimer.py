@@ -44,9 +44,8 @@ def BCDtotime(BCD):
     BCDtime=time.strptime(str1,"%S %M %H %w %d %m %y")
 #    print(BCDtime)
     return BCDtime
-#时间戳转换为寄存器BCD码（24小时制）
+#time元组转换为寄存器BCD码（24小时制）
 def timetoBCD(localtime):
-
     BCD=[
         TENtoBCD(localtime.tm_sec),
         TENtoBCD(localtime.tm_min),
@@ -58,16 +57,17 @@ def timetoBCD(localtime):
     ]
     return BCD
 
+#time元组转十进制
 def timetoTEN(ttime):
     BCD=timetoBCD(ttime)
     TEN = BCDtoTENl(BCD)
     return TEN
 
-#十进制转BCD
+#十进制转time元组
 def TENtotime(TEN):
     BCD=TENtoBCDl(TEN)
     ttime=BCDtotime(BCD)
-    return time
+    return ttime
 
 
 #关闭写保护
