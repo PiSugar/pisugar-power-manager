@@ -13,6 +13,22 @@ class PiSugarCore:
     CTR2 = 0x10
     CTR3 = 0x11
 
+    def __init__(self):
+
+        # 初始化实例，检查i2c总线里各个芯片是否存在
+        IS_RTC_ALIVE = True
+        IS_BAT_ALIVE = True
+
+        # 清除rtc报警flag
+        self.clean_clock_flag()
+        self.battery_shutdown_set()
+
+    def get_model(self):
+        return "PiSugar 2"
+
+    def get_status(self):
+        return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
+
     # 单个BCD转十进制
     @staticmethod
     def __bcd2ten(bcd):
@@ -80,7 +96,7 @@ class PiSugarCore:
         return bcd
 
     # 关闭写保护
-    def disable_rtc_write_protect(self):
+    def __disable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
             ct = ct | 0b10000000
@@ -91,7 +107,7 @@ class PiSugarCore:
         return
 
     # 打开写保护
-    def enable_rtc_write_protect(self):
+    def __enable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
             # print(ct)
@@ -119,14 +135,14 @@ class PiSugarCore:
         if self.read_clock_flag() == 1:
             with SMBusWrapper(1) as bus:
                 # 关闭写保护，写入数据
-                self.disable_rtc_write_protect()
+                self.__disable_rtc_write_protect()
                 ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
                 # print(ct)
                 ct = ct & 0b11001111
                 # print(ct)
                 bus.write_byte_data(self.RTC_ADDRESS, self.CTR1, ct)
                 # 数据写入完毕，打开写保护
-                self.enable_rtc_write_protect()
+                self.__enable_rtc_write_protect()
         return
 
     def sync_time_pi2rtc(self):
@@ -139,11 +155,11 @@ class PiSugarCore:
             bcd[2] = bcd[2] | 0b10000000
 
             # 关闭写保护，写入数据
-            self.disable_rtc_write_protect()
+            self.__disable_rtc_write_protect()
             bus.write_i2c_block_data(self.RTC_ADDRESS, 0, bcd)
 
             # 数据写入完毕，打开写保护
-            self.enable_rtc_write_protect()
+            self.__enable_rtc_write_protect()
         return
 
     def read_time(self):
@@ -157,6 +173,39 @@ class PiSugarCore:
             print("系统时间为：", self.__time2ten(time.localtime(time.time())))
             # time.sleep(1)
             return time_ic
+
+    def clock_time_set(self, clock_time, week):
+        print("预计开机时间：", clock_time)
+        bcd = self.__ten2bcdl(clock_time)
+        bcd[3] = week
+        print("经过转换后：", bcd)
+        with SMBusWrapper(1) as bus:
+
+            # 关闭写保护，写入数据
+            self.__disable_rtc_write_protect()
+
+            # 设置报警时间
+            bus.write_i2c_block_data(self.RTC_ADDRESS, 0x07, bcd)
+
+            # 打开报警中断同时设置INT输出选择报警中断和频率
+            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
+            # print(ct)
+            ct = ct | 0b01010010
+            ct = ct & 0b11011111
+            print("预计写入的数据为：", bin(ct))
+            bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
+
+            # 设置报警允许位为周小时分钟秒
+            bus.write_byte_data(self.RTC_ADDRESS, 0X0E, 0b00001111)
+
+            # 数据写入完毕，打开写保护
+            self.__enable_rtc_write_protect()
+            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
+            print("CTR1数据为：", bin(ct))
+            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
+            print("CTR2数据为：", bin(ct))
+            block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0x07, 7)
+            print(block)
 
     def read_battery_i(self):
         with SMBusWrapper(1) as bus:
@@ -213,39 +262,6 @@ class PiSugarCore:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x02)
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
-
-    def clock_time_set(self, clock_time, week):
-        print("预计开机时间：", clock_time)
-        bcd = self.__ten2bcdl(clock_time)
-        bcd[3] = week
-        print("经过转换后：", bcd)
-        with SMBusWrapper(1) as bus:
-
-            # 关闭写保护，写入数据
-            self.disable_rtc_write_protect()
-
-            # 设置报警时间
-            bus.write_i2c_block_data(self.RTC_ADDRESS, 0x07, bcd)
-
-            # 打开报警中断同时设置INT输出选择报警中断和频率
-            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
-            # print(ct)
-            ct = ct | 0b01010010
-            ct = ct & 0b11011111
-            print("预计写入的数据为：", bin(ct))
-            bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
-
-            # 设置报警允许位为周小时分钟秒
-            bus.write_byte_data(self.RTC_ADDRESS, 0X0E, 0b00001111)
-
-            # 数据写入完毕，打开写保护
-            self.enable_rtc_write_protect()
-            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
-            print("CTR1数据为：", bin(ct))
-            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
-            print("CTR2数据为：", bin(ct))
-            block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0x07, 7)
-            print(block)
 
 
 if __name__ == "__main__":
