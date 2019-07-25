@@ -1,3 +1,5 @@
 
 .idea/*
 PiSugarCore/.idea/*
+core/test.py
+venv/*
