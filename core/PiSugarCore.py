@@ -7,6 +7,9 @@ class PiSugarCore:
 
     IS_RTC_ALIVE = False
     IS_BAT_ALIVE = False
+    BATTERY_LEVEL = 0
+    BATTERY_I = 0
+    BATTERY_V = 0
     RTC_ADDRESS = 0x32
     BAT_ADDRESS = 0x75
     CTR1 = 0x0f
@@ -29,27 +32,23 @@ class PiSugarCore:
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
 
-    # 单个BCD转十进制
     @staticmethod
     def __bcd2ten(bcd):
         return (bcd & 0x0F) + (((bcd & 0xF0) >> 4) * 10)
 
-    # 单个十进制转BCD
     @staticmethod
     def __ten2bcd(ten):
         return ten % 10 + (int(ten / 10) << 4)
 
-    # listBCD转十进制
     @staticmethod
-    def __bcd2tenl(bcd):
+    def __bcd2ten_list(bcd):
         ten = []
         for k in bcd:
             ten.append(PiSugarCore.__bcd2ten(k))
         return ten
 
-    # list十进制转BCD
     @staticmethod
-    def __ten2bcdl(ten):
+    def __ten2bcd_list(ten):
         bcd = []
         for k in ten:
             # print("原本的%d转化为%d" %(k,TEN2BCD(k)))
@@ -59,25 +58,29 @@ class PiSugarCore:
     @staticmethod
     def __time2ten(ttime):
         bcd = PiSugarCore.__time2bcd(ttime)
-        ten = PiSugarCore.__bcd2tenl(bcd)
+        ten = PiSugarCore.__bcd2ten_list(bcd)
         return ten
 
     @staticmethod
     def __ten2time(ten):
-        bcd = PiSugarCore.__ten2bcdl(ten)
+        bcd = PiSugarCore.__ten2bcd_list(ten)
         ttime = PiSugarCore.__bcd2time(bcd)
         return ttime
 
     # BCD转换为time模组
     @staticmethod
     def __bcd2time(bcd):
+
         # time模组处理str的时候，周数会自动减一。例如，数字3代表周三，但是time模组以周日为第一天，读取以后会自动减一。SD3078也是周日为第一天，此处手动加1解决匹配的问题
         bcd[3] = bcd[3]+1
+
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19
         str1 = ' '.join([str(PiSugarCore.__bcd2ten(x)) for x in bcd])
         print(str1)
+
         # 将字符串转化为time元组
         bcd_time = time.strptime(str1, "%S %M %H %w %d %m %y")
+
         # print(BCDtime)
         return bcd_time
 
@@ -168,16 +171,27 @@ class PiSugarCore:
             # print(block)
             # 屏蔽判断位
             block[2] = block[2] & 0b01111111
-            time_ic = self.__bcd2tenl(block)
+            time_ic = self.__bcd2ten_list(block)
             print("RTC时间为：", time_ic)
             print("系统时间为：", self.__time2ten(time.localtime(time.time())))
             # time.sleep(1)
             return time_ic
 
-    def clock_time_set(self, clock_time, week):
+    '''
+    clock_time_set
+    
+    clock_time 
+    [sec, min, hour, week, day, month, year]
+    ep. [10, 1, 16, 4, 30, 12, 19] -> 16:01:10 Thu 2019-12-05
+    
+    week_day_repeat
+    ep. 0b00000111 -> repeat alarm on Tue, Mon, Sun 
+    '''
+
+    def clock_time_set(self, clock_time, week_repeat):
         print("预计开机时间：", clock_time)
-        bcd = self.__ten2bcdl(clock_time)
-        bcd[3] = week
+        bcd = self.__ten2bcd_list(clock_time)
+        bcd[3] = week_repeat
         print("经过转换后：", bcd)
         with SMBusWrapper(1) as bus:
 
@@ -222,6 +236,7 @@ class PiSugarCore:
             else:
                 i = ((high & 0x1f) * 256 + low + 1) * 0.745985
         print("电流为 %d mA" % i)
+        self.BATTERY_I = i
         return i
 
     def read_battery_v(self):
@@ -239,7 +254,31 @@ class PiSugarCore:
             else:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
         print("电压为 %d mV" % v)
+        self.BATTERY_V = v
         return v
+
+    def read_battery_percent(self):
+        batter_curve = [
+            [4.2, 5.5, 100, 100],
+            [4.06, 4.2, 90, 100],
+            [3.98, 4.06, 80, 90],
+            [3.92, 3.98, 70, 80],
+            [3.87, 3.92, 60, 70],
+            [3.82, 3.87, 50, 60],
+            [3.79, 3.82, 40, 50],
+            [3.77, 3.79, 30, 40],
+            [3.74, 3.77, 20, 30],
+            [3.68, 3.74, 10, 20],
+            [3.45, 3.68, 5, 10],
+            [3, 3.45, 0, 5],
+            [0, 3, 0, 0]
+        ]
+        batter_level = 0
+        for range in batter_curve:
+            if range[0] < self.BATTERY_V <= range[1]:
+                batter_level = ((self.BATTERY_V - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
+        self.BATTERY_LEVEL = batter_level
+        return batter_level
 
     def battery_shutdown_set(self):
         with SMBusWrapper(1) as bus:
@@ -294,5 +333,5 @@ if __name__ == "__main__":
                 current_time[0] = current_time[0] - 60
             if current_time[1] >= 60:
                 current_time[1] = current_time[1] - 60
-            core.clock_time_set(current_time, 0b0111101)
+            core.clock_time_set(current_time, 0b0111111)
         time.sleep(1)
