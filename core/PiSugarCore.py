@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import time
+import threading
 from smbus2 import SMBusWrapper
 
 
@@ -9,6 +10,7 @@ class PiSugarCore:
 
     IS_RTC_ALIVE = False
     IS_BAT_ALIVE = False
+
     BATTERY_LEVEL = 0
     BATTERY_I = 0
     BATTERY_V = 0
@@ -18,6 +20,9 @@ class PiSugarCore:
     CTR2 = 0x10
     CTR3 = 0x11
 
+    UPDATE_INTERVAL = 1
+    RTC_TIME = None
+
     def __init__(self):
 
         # 初始化实例，检查i2c总线里各个芯片是否存在
@@ -26,7 +31,8 @@ class PiSugarCore:
 
         # 清除rtc报警flag
         self.clean_clock_flag()
-        self.battery_shutdown_set()
+        self.battery_loop()
+        self.rtc_loop()
 
     def get_model(self):
         return "PiSugar 2"
@@ -130,10 +136,10 @@ class PiSugarCore:
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
             if ct & 0b00100000:
-                print("报警中断已触发")
+                print("clock flag triggered")
                 return 1
             if ct & 0b00010000:
-                print("循环中断已触发")
+                print("clock flag triggered")
                 return 1
 
     def clean_clock_flag(self):
@@ -174,10 +180,14 @@ class PiSugarCore:
             # 屏蔽判断位
             block[2] = block[2] & 0b01111111
             time_ic = self.__bcd2ten_list(block)
-            print("RTC时间为：", time_ic)
-            print("系统时间为：", self.__time2ten(time.localtime(time.time())))
+            self.RTC_TIME = self.__bcd2time(block)
+            # print("System time：", self.__time2ten(time.localtime(time.time())))
+            # print("RTC time", time.strftime("%Y--%m--%d %H:%M:%S", time_ic))
             # time.sleep(1)
             return time_ic
+
+    def get_rtc_time(self):
+        return self.RTC_TIME
 
     '''
     clock_time_set
@@ -237,7 +247,7 @@ class PiSugarCore:
                 i = -(high * 256 + low + 1) * 0.745985
             else:
                 i = ((high & 0x1f) * 256 + low + 1) * 0.745985
-        print("电流为 %d mA" % i)
+        # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
 
@@ -255,11 +265,11 @@ class PiSugarCore:
                 v = -(high * 256 + low + 1) * 0.26855 + 2600
             else:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
-        print("电压为 %d mV" % v)
+        # print("votage %d mV" % v)
         self.BATTERY_V = v
         return v
 
-    def read_battery_percent(self):
+    def get_battery_percent(self):
         batter_curve = [
             [4.2, 5.5, 100, 100],
             [4.06, 4.2, 90, 100],
@@ -277,20 +287,18 @@ class PiSugarCore:
         ]
         batter_level = 0
         for range in batter_curve:
-            if range[0] < self.BATTERY_V <= range[1]:
-                batter_level = ((self.BATTERY_V - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
+            if range[0] < self.BATTERY_V / 1000 <= range[1]:
+                batter_level = ((self.BATTERY_V / 1000 - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
         self.BATTERY_LEVEL = batter_level
         return batter_level
 
-    def battery_shutdown_set(self):
+    def battery_shutdown_threshold_set(self):
         with SMBusWrapper(1) as bus:
 
             # 设置阈值电流
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x0c)
-            print(bin(t))
             t = (t & 0b00000111)
             t = t | (12 << 3)
-            print(bin(t))
             bus.write_byte_data(self.BAT_ADDRESS, 0x0c, t)
 
             # 设置关机时间
@@ -304,36 +312,41 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
+    def battery_loop(self):
+        self.BATTERY_I = self.read_battery_i()
+        self.BATTERY_V = self.read_battery_v()
+        self.BATTERY_LEVEL = self.get_battery_percent()
+        self.battery_shutdown_threshold_set()
+        # print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
+        print("Battery level: %d%%" % self.BATTERY_LEVEL)
+        threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
+
+    def rtc_loop(self):
+        self.read_time()
+        threading.Timer(self.UPDATE_INTERVAL, self.rtc_loop).start()
+
 
 if __name__ == "__main__":
+
+    print("wakeup after 1min30sec")
+
     core = PiSugarCore()
     core.sync_time_pi2rtc()
-    # read_time()
-    core.battery_shutdown_set()
-    current_time = core.read_time()
-    current_time[0] = current_time[0] + 30
-    current_time[1] = current_time[1] + 1
-    if current_time[0] >= 60:
-        current_time[1] = current_time[1] + 1
-        current_time[0] = current_time[0] - 60
-
-    if current_time[1] >= 60:
-        current_time[1] = current_time[1] - 60
-        current_time[2] = current_time[2] + 1
-    core.clock_time_set(current_time, 0b0111111)
-    t1 = 0
-    while 1:
-        print("系统功率为 %d mW" % (core.read_battery_i() * core.read_battery_v() / 1000))
-        core.read_clock_flag()
-        core.read_time()
-        # clean_clock_flag()
-        if core.read_clock_flag():
-            current_time = core.read_time()
-            current_time[0] = current_time[0] + 3
-            if current_time[0] >= 60:
-                current_time[1] = current_time[1] + 1
-                current_time[0] = current_time[0] - 60
-            if current_time[1] >= 60:
-                current_time[1] = current_time[1] - 60
-            core.clock_time_set(current_time, 0b0111111)
-        time.sleep(1)
+    # core.battery_shutdown_set()
+    # current_time = core.read_time()
+    # current_time[0] = current_time[0] + 30
+    # current_time[1] = current_time[1] + 1
+    # if current_time[0] >= 60:
+    #     current_time[1] = current_time[1] + 1
+    #     current_time[0] = current_time[0] - 60
+    #
+    # if current_time[1] >= 60:
+    #     current_time[1] = current_time[1] - 60
+    #     current_time[2] = current_time[2] + 1
+    # core.clock_time_set(current_time, 0b0111111)
+    # while True:
+    #     core.BATTERY_I = core.read_battery_i()
+    #     core.BATTERY_V = core.read_battery_v()
+    #     print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
+    #     time.sleep(1)
+    print("Hello PiSugar 2")
