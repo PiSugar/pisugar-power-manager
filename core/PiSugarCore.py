@@ -59,7 +59,6 @@ class PiSugarCore:
     def __ten2bcd_list(ten):
         bcd = []
         for k in ten:
-            # print("原本的%d转化为%d" %(k,TEN2BCD(k)))
             bcd.append(PiSugarCore.__ten2bcd(k))
         return bcd
 
@@ -84,7 +83,7 @@ class PiSugarCore:
 
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19
         str1 = ' '.join([str(PiSugarCore.__bcd2ten(x)) for x in bcd])
-        print(str1)
+        # print(str1)
 
         # 将字符串转化为time元组
         bcd_time = time.strptime(str1, "%S %M %H %w %d %m %y")
@@ -318,7 +317,7 @@ class PiSugarCore:
         self.BATTERY_LEVEL = self.get_battery_percent()
         self.battery_shutdown_threshold_set()
         # print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
-        print("Battery level: %d%%" % self.BATTERY_LEVEL)
+        # print("Battery level: %d%%" % self.BATTERY_LEVEL)
         threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
 
     def rtc_loop(self):
