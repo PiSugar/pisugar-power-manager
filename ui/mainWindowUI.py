@@ -36,21 +36,21 @@ class Ui_MainWindow(object):
         self.yellowStatus.setStyleSheet("background-image: url(:/image/yellow.jpg);")
         self.yellowStatus.setText("")
         self.yellowStatus.setObjectName("yellowStatus")
-        self.label = QtWidgets.QLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(70, 230, 151, 31))
-        self.label.setStyleSheet("font: 28pt \"Lao UI\";\n"
+        self.batteryLabel = QtWidgets.QLabel(self.centralwidget)
+        self.batteryLabel.setGeometry(QtCore.QRect(70, 230, 151, 31))
+        self.batteryLabel.setStyleSheet("font: 28pt \"Lao UI\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-image: url();")
-        self.label.setAlignment(QtCore.Qt.AlignCenter)
-        self.label.setObjectName("label")
-        self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        self.label_2.setGeometry(QtCore.QRect(70, 280, 151, 21))
-        self.label_2.setStyleSheet("font: 10pt \"Lao UI\";\n"
+        self.batteryLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.batteryLabel.setObjectName("batteryLabel")
+        self.votageLable = QtWidgets.QLabel(self.centralwidget)
+        self.votageLable.setGeometry(QtCore.QRect(70, 280, 151, 21))
+        self.votageLable.setStyleSheet("font: 10pt \"Lao UI\";\n"
 "color: white;\n"
 "background-image: url();")
-        self.label_2.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_2.setObjectName("label_2")
+        self.votageLable.setAlignment(QtCore.Qt.AlignCenter)
+        self.votageLable.setObjectName("votageLable")
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
         self.label_3.setGeometry(QtCore.QRect(330, 30, 201, 31))
         self.label_3.setLayoutDirection(QtCore.Qt.LeftToRight)
@@ -199,8 +199,8 @@ class Ui_MainWindow(object):
         self.label_12.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.label_12.setObjectName("label_12")
         self.yellowStatus.raise_()
-        self.label.raise_()
-        self.label_2.raise_()
+        self.batteryLabel.raise_()
+        self.votageLable.raise_()
         self.label_3.raise_()
         self.enableAutoBoot.raise_()
         self.enableEveryday.raise_()
@@ -267,8 +267,8 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "PiSugar Power Manager"))
-        self.label.setText(_translate("MainWindow", "100%"))
-        self.label_2.setText(_translate("MainWindow", "Output Votage: 5.28V"))
+        self.batteryLabel.setText(_translate("MainWindow", "100%"))
+        self.votageLable.setText(_translate("MainWindow", "Power: ..."))
         self.label_3.setText(_translate("MainWindow", "Auto Boot"))
         self.label_4.setText(_translate("MainWindow", "Button Function"))
         self.label_5.setText(_translate("MainWindow", "Single Tap"))

@@ -3,6 +3,7 @@
 
 import time
 import threading
+import math
 from smbus2 import SMBusWrapper
 
 
@@ -10,8 +11,10 @@ class PiSugarCore:
 
     IS_RTC_ALIVE = False
     IS_BAT_ALIVE = False
+    IS_CHARGING = False
+    BATTERY_LEVEL_RECORD = None
 
-    BATTERY_LEVEL = 0
+    BATTERY_LEVEL = -1
     BATTERY_I = 0
     BATTERY_V = 0
     RTC_ADDRESS = 0x32
@@ -23,6 +26,7 @@ class PiSugarCore:
     UPDATE_INTERVAL = 1
     RTC_TIME = None
 
+
     def __init__(self):
 
         # 初始化实例，检查i2c总线里各个芯片是否存在
@@ -33,9 +37,7 @@ class PiSugarCore:
         self.clean_clock_flag()
         self.battery_loop()
         self.rtc_loop()
-
-    def get_model(self):
-        return "PiSugar 2"
+        self.charge_check_loop()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -268,29 +270,6 @@ class PiSugarCore:
         self.BATTERY_V = v
         return v
 
-    def get_battery_percent(self):
-        batter_curve = [
-            [4.2, 5.5, 100, 100],
-            [4.06, 4.2, 90, 100],
-            [3.98, 4.06, 80, 90],
-            [3.92, 3.98, 70, 80],
-            [3.87, 3.92, 60, 70],
-            [3.82, 3.87, 50, 60],
-            [3.79, 3.82, 40, 50],
-            [3.77, 3.79, 30, 40],
-            [3.74, 3.77, 20, 30],
-            [3.68, 3.74, 10, 20],
-            [3.45, 3.68, 5, 10],
-            [3, 3.45, 0, 5],
-            [0, 3, 0, 0]
-        ]
-        batter_level = 0
-        for range in batter_curve:
-            if range[0] < self.BATTERY_V / 1000 <= range[1]:
-                batter_level = ((self.BATTERY_V / 1000 - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
-        self.BATTERY_LEVEL = batter_level
-        return batter_level
-
     def battery_shutdown_threshold_set(self):
         with SMBusWrapper(1) as bus:
 
@@ -323,6 +302,67 @@ class PiSugarCore:
     def rtc_loop(self):
         self.read_time()
         threading.Timer(self.UPDATE_INTERVAL, self.rtc_loop).start()
+
+    def charge_check_loop(self):
+        if self.BATTERY_LEVEL == -1:
+            threading.Timer(self.UPDATE_INTERVAL, self.charge_check_loop).start()
+            return
+        if self.BATTERY_LEVEL_RECORD is None:
+            lv = self.BATTERY_LEVEL
+            self.BATTERY_LEVEL_RECORD = [lv, lv, lv, lv, lv, lv, lv, lv, lv, lv]
+        else:
+            del self.BATTERY_LEVEL_RECORD[0]
+            self.BATTERY_LEVEL_RECORD.append(self.BATTERY_LEVEL)
+        max_lv = max(self.BATTERY_LEVEL_RECORD)
+        max_index = self.BATTERY_LEVEL_RECORD.index(max_lv)
+        min_lv = min(self.BATTERY_LEVEL_RECORD)
+        min_index = self.BATTERY_LEVEL_RECORD.index(min_lv)
+        result = None
+        if max_lv - min_lv > 3:
+            if max_index > min_index:
+                result = True
+            else:
+                result = False
+        elif max_lv - min_lv < 0.15:
+            result = False
+        if result is not None:
+            self.IS_CHARGING = result
+        threading.Timer(self.UPDATE_INTERVAL, self.charge_check_loop).start()
+
+    def get_battery_votage(self):
+        return int(self.BATTERY_V / 10) / 100
+
+    def get_battery_current(self):
+        return int(self.BATTERY_I / 10) / 100
+
+    def get_battery_charging_status(self):
+        return self.IS_CHARGING
+
+    def get_battery_percent(self):
+        batter_curve = [
+            [4.13, 5.5, 100, 100],
+            [4.06, 4.13, 90, 100],
+            [3.98, 4.06, 80, 90],
+            [3.92, 3.98, 70, 80],
+            [3.87, 3.92, 60, 70],
+            [3.82, 3.87, 50, 60],
+            [3.79, 3.82, 40, 50],
+            [3.77, 3.79, 30, 40],
+            [3.74, 3.77, 20, 30],
+            [3.68, 3.74, 10, 20],
+            [3.45, 3.68, 5, 10],
+            [3, 3.45, 0, 5],
+            [0, 3, 0, 0]
+        ]
+        batter_level = 0
+        for range in batter_curve:
+            if range[0] < self.BATTERY_V / 1000 <= range[1]:
+                batter_level = ((self.BATTERY_V / 1000 - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
+        self.BATTERY_LEVEL = batter_level
+        return batter_level
+
+    def get_model(self):
+        return "PiSugar 2"
 
 
 if __name__ == "__main__":
