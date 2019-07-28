@@ -36,14 +36,14 @@ class Ui_MainWindow(object):
         self.yellowStatus.setStyleSheet("background-image: url(:/image/yellow.jpg);")
         self.yellowStatus.setText("")
         self.yellowStatus.setObjectName("yellowStatus")
-        self.batteryLabel = QtWidgets.QLabel(self.centralwidget)
-        self.batteryLabel.setGeometry(QtCore.QRect(70, 230, 151, 31))
-        self.batteryLabel.setStyleSheet("font: 28pt \"Lao UI\";\n"
+        self.batteryLable = QtWidgets.QLabel(self.centralwidget)
+        self.batteryLable.setGeometry(QtCore.QRect(70, 230, 151, 31))
+        self.batteryLable.setStyleSheet("font: 28pt \"Lao UI\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-image: url();")
-        self.batteryLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.batteryLabel.setObjectName("batteryLabel")
+        self.batteryLable.setAlignment(QtCore.Qt.AlignCenter)
+        self.batteryLable.setObjectName("batteryLable")
         self.powerLabel = QtWidgets.QLabel(self.centralwidget)
         self.powerLabel.setGeometry(QtCore.QRect(70, 280, 151, 21))
         self.powerLabel.setStyleSheet("font: 10pt \"Lao UI\";\n"
@@ -187,7 +187,7 @@ class Ui_MainWindow(object):
         self.hostMsg_2.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.hostMsg_2.setObjectName("hostMsg_2")
         self.yellowStatus.raise_()
-        self.batteryLabel.raise_()
+        self.batteryLable.raise_()
         self.powerLabel.raise_()
         self.label_3.raise_()
         self.timeEdit.raise_()
@@ -282,7 +282,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "PiSugar Power Manager"))
-        self.batteryLabel.setText(_translate("MainWindow", "100%"))
+        self.batteryLable.setText(_translate("MainWindow", "100%"))
         self.powerLabel.setText(_translate("MainWindow", "Output Votage: 5.28V"))
         self.label_3.setText(_translate("MainWindow", "Auto Boot"))
         self.label_4.setText(_translate("MainWindow", "Button Function"))
@@ -334,7 +334,7 @@ class Ui_MainWindow(object):
         self.actionAuto_sync_RTC_to_Pi_on_startup.setText(_translate("MainWindow", "Auto Sync (RTC to Pi) on Startup"))
         self.actionPi_Time.setText(_translate("MainWindow", "Pi Time : "))
 
-import ui.sugar_rc
+import sugar_rc
 
 if __name__ == "__main__":
     import sys

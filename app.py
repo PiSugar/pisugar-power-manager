@@ -2,6 +2,7 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import threading
+import time
 from ui.mainWindowUI import Ui_MainWindow
 from core.PiSugarCore import PiSugarCore
 
@@ -43,7 +44,7 @@ class SugarMainWindow(Ui_MainWindow):
         power = int(votage * current * 100) / 100
         if power < 0:
             power = - power
-        self.votageLable.setText(_translate("MainWindow", "Power: " + str(round(power, 2)) + "W"))
+        self.powerLabel.setText(_translate("MainWindow", "Power: " + str(round(power, 2)) + "W"))
         charging_str = " [charging]️" if battery_is_charging else ""
         self.modelLabel.setText(_translate("MainWindow", model + charging_str))
         print(percent, votage)
@@ -60,6 +61,14 @@ def refresh_battery():
     main_window.updateBatteryStatus(battery_percent, battery_votage, battery_current, battery_model, battery_is_charging)
     action_percent.setText("Battery Level: " + str(int(battery_percent)) + "%")
     update_tray_icon(battery_percent, battery_model, battery_is_charging)
+
+    localtime = time.asctime(time.localtime(time.time()))
+
+    f = open('record.txt', 'a+')
+    new = str(localtime) + " : " + str(battery_votage) + " : " + str(int(battery_percent)) + "\n"
+    f.write(new)
+    f.flush()
+    f.close()
 
     threading.Timer(2.0, refresh_battery).start()
 

@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>750</width>
+    <height>500</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>750</width>
+    <height>500</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>750</width>
+    <height>500</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>PiSugar Power Manager</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <property name="animated">
+   <bool>true</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">background-image: url(:/image/background.jpg);</string>
+   </property>
+   <widget class="QLabel" name="greenStatus">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>140</y>
+      <width>125</width>
+      <height>65</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url(:/image/green.jpg);</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="redStatus">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>140</y>
+      <width>125</width>
+      <height>65</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url(:/image/red.jpg);</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="yellowStatus">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>140</y>
+      <width>125</width>
+      <height>65</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url(:/image/yellow.jpg);</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="batteryLable">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>230</y>
+      <width>151</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 28pt &quot;Lao UI&quot;;
+font-weight: bold;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>100%</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="powerLabel">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>280</y>
+      <width>151</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Output Votage: 5.28V</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>40</y>
+      <width>201</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 14pt &quot;Lao UI&quot;;
+font-weight: bold;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Auto Boot</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QTimeEdit" name="timeEdit">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>80</y>
+      <width>110</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>150</y>
+      <width>231</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 14pt &quot;Lao UI&quot;;
+font-weight: bold;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Button Function</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_5">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>190</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Single Tap</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="singleTapFunction">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>190</y>
+      <width>161</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>None</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Custom Shell</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QComboBox" name="DoubleTapFunction">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>230</y>
+      <width>161</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>None</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Shutdown</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Reboot</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Custom Shell</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>230</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Double Taps</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="longTapFunction">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>270</y>
+      <width>161</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <property name="editable">
+     <bool>false</bool>
+    </property>
+    <item>
+     <property name="text">
+      <string>None</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Shutdown</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Reboot</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Custom Shell</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_7">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>270</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Long Tap</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="editSingleTap">
+    <property name="geometry">
+     <rect>
+      <x>600</x>
+      <y>190</y>
+      <width>61</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Edit</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="editDoubleTap">
+    <property name="geometry">
+     <rect>
+      <x>600</x>
+      <y>230</y>
+      <width>61</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Edit</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="editLongTap">
+    <property name="geometry">
+     <rect>
+      <x>600</x>
+      <y>270</y>
+      <width>61</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Edit</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_8">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>320</y>
+      <width>261</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 14pt &quot;Lao UI&quot;;
+font-weight: bold;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Safe Shutdown</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="safeShutdownLevel">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>360</y>
+      <width>161</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>&lt;= 5%</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>&lt;= 3%</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>&lt;= 1%</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Disable</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_9">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>360</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Battery Level</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="modelLabel">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>111</y>
+      <width>161</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+color: white;
+background-image: url();
+font-weight: bold;</string>
+    </property>
+    <property name="text">
+     <string>PiSugar 2 Pro</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="hostMsg">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>420</y>
+      <width>181</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+background-image: url();
+color: rgb(173, 173, 173);</string>
+    </property>
+    <property name="text">
+     <string>Host: 192.169.1.92:3010</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="timeType">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>80</y>
+      <width>90</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>None</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>timeset</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>circleset</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QPushButton" name="timeReapeat">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>80</y>
+      <width>91</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-image: url();</string>
+    </property>
+    <property name="text">
+     <string>Repeat</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="hostMsg_2">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>110</y>
+      <width>391</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 10pt &quot;Lao UI&quot;;
+background-image: url();
+color: rgb(173, 173, 173);</string>
+    </property>
+    <property name="text">
+     <string>Repeat on Mon, Thu, Sun</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <zorder>yellowStatus</zorder>
+   <zorder>batteryLable</zorder>
+   <zorder>powerLabel</zorder>
+   <zorder>label_3</zorder>
+   <zorder>timeEdit</zorder>
+   <zorder>label_4</zorder>
+   <zorder>label_5</zorder>
+   <zorder>singleTapFunction</zorder>
+   <zorder>DoubleTapFunction</zorder>
+   <zorder>label_6</zorder>
+   <zorder>longTapFunction</zorder>
+   <zorder>label_7</zorder>
+   <zorder>editSingleTap</zorder>
+   <zorder>editDoubleTap</zorder>
+   <zorder>editLongTap</zorder>
+   <zorder>label_8</zorder>
+   <zorder>safeShutdownLevel</zorder>
+   <zorder>label_9</zorder>
+   <zorder>modelLabel</zorder>
+   <zorder>redStatus</zorder>
+   <zorder>greenStatus</zorder>
+   <zorder>hostMsg</zorder>
+   <zorder>timeType</zorder>
+   <zorder>timeReapeat</zorder>
+   <zorder>hostMsg_2</zorder>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>750</width>
+     <height>28</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="menuEnable_Sever"/>
+    <addaction name="menuServer_Setting"/>
+    <addaction name="separator"/>
+    <addaction name="menuClose"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="menuGithub"/>
+    <addaction name="menuAbout"/>
+   </widget>
+   <widget class="QMenu" name="menuRTC">
+    <property name="title">
+     <string>Time</string>
+    </property>
+    <addaction name="actionRTC_Time"/>
+    <addaction name="actionPi_Time"/>
+    <addaction name="separator"/>
+    <addaction name="actionSync_Time_Pi_to_RTC"/>
+    <addaction name="actionSync_Time_RTC_to_Pi"/>
+    <addaction name="actionSync_Time_Internet_to_Pi_RTC"/>
+    <addaction name="separator"/>
+    <addaction name="actionAuto_sync_RTC_to_Pi_on_startup"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuRTC"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <action name="actionAbout_PiSugar_Power_Manager_1_0">
+   <property name="text">
+    <string>About PiSugar Power Manager 1.0</string>
+   </property>
+  </action>
+  <action name="actionHelp">
+   <property name="text">
+    <string>Help</string>
+   </property>
+  </action>
+  <action name="actionAbout_PiSugar_Power_Manager_v1_0">
+   <property name="text">
+    <string>About PiSugar Power Manager v1.0</string>
+   </property>
+  </action>
+  <action name="actionClose">
+   <property name="text">
+    <string>Close Window</string>
+   </property>
+  </action>
+  <action name="menuGithub">
+   <property name="text">
+    <string>Visit Github Repository</string>
+   </property>
+  </action>
+  <action name="menuClose">
+   <property name="text">
+    <string>Close</string>
+   </property>
+  </action>
+  <action name="menuServer_Setting">
+   <property name="text">
+    <string>Server Setting</string>
+   </property>
+  </action>
+  <action name="menuAbout">
+   <property name="text">
+    <string>About PiSugar Power Manager v1.0</string>
+   </property>
+  </action>
+  <action name="menuEnable_Sever">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Enable Sever</string>
+   </property>
+  </action>
+  <action name="actionRTC_Time">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>RTC Time : </string>
+   </property>
+  </action>
+  <action name="actionSync_Time_Pi_to_RTC">
+   <property name="text">
+    <string>Sync Time (Pi to RTC) </string>
+   </property>
+  </action>
+  <action name="actionSync_Time_RTC_to_Pi">
+   <property name="text">
+    <string>Sync Time (RTC to Pi)</string>
+   </property>
+  </action>
+  <action name="actionSync_Time_Internet_to_Pi_RTC">
+   <property name="text">
+    <string>Sync Time (Internet to Pi and RTC)</string>
+   </property>
+  </action>
+  <action name="actionAuto_sync_RTC_to_Pi_on_startup">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Auto Sync (RTC to Pi) on Startup</string>
+   </property>
+  </action>
+  <action name="actionPi_Time">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Pi Time : </string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="sugar.qrc"/>
+ </resources>
+ <connections/>
+</ui>
