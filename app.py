@@ -12,7 +12,8 @@ RTC_TIME = 0
 BATTERY_PERCENT = 0
 TIME_TYPE = 0
 TIME_SET = QtCore.QTime(0, 0)
-WEEK_REPEAT = 0b00000000
+WEEK_REPEAT = 0b0000000
+SHOULD_CLEAN_ALARM = False
 
 
 class SugarMainWindow(Ui_MainWindow):
@@ -49,6 +50,7 @@ class SugarMainWindow(Ui_MainWindow):
         global TIME_SET
         global TIME_TYPE
         global WEEK_REPEAT
+        global SHOULD_CLEAN_ALARM
         if TIME_TYPE == 1:
             self.timeEdit.setDisabled(False)
             self.timeReapeat.setDisabled(False)
@@ -57,6 +59,8 @@ class SugarMainWindow(Ui_MainWindow):
             time_to_set[1] = TIME_SET.minute()
             time_to_set[2] = TIME_SET.hour()
             core.clock_time_set(time_to_set, WEEK_REPEAT)
+            SHOULD_CLEAN_ALARM = WEEK_REPEAT == 0
+            core.clean_clock_flag()
             self.clockMsg.setText(_translate("MainWindow", self.get_clock_msg()))
         else:
             self.timeEdit.setDisabled(True)
@@ -65,24 +69,24 @@ class SugarMainWindow(Ui_MainWindow):
 
     def get_clock_msg(self):
         global WEEK_REPEAT
-        if WEEK_REPEAT == 0b01111111:
+        if WEEK_REPEAT == 0b1111111:
             return "Everyday"
-        if WEEK_REPEAT == 0b00000000:
+        if WEEK_REPEAT == 0b0000000:
             return "Once"
         alarm_week = []
-        if WEEK_REPEAT & 0b00000001 == 0b00000001:
+        if WEEK_REPEAT & 0b0000001 == 0b0000001:
             alarm_week.append("Mon")
-        if WEEK_REPEAT & 0b00000010 == 0b00000010:
+        if WEEK_REPEAT & 0b0000010 == 0b0000010:
             alarm_week.append("Tue")
-        if WEEK_REPEAT & 0b00000100 == 0b00000100:
+        if WEEK_REPEAT & 0b0000100 == 0b0000100:
             alarm_week.append("Wed")
-        if WEEK_REPEAT & 0b00001000 == 0b00001000:
+        if WEEK_REPEAT & 0b0001000 == 0b0001000:
             alarm_week.append("Thu")
-        if WEEK_REPEAT & 0b00010000 == 0b00010000:
+        if WEEK_REPEAT & 0b0010000 == 0b0010000:
             alarm_week.append("Fri")
-        if WEEK_REPEAT & 0b00100000 == 0b00100000:
+        if WEEK_REPEAT & 0b0100000 == 0b0100000:
             alarm_week.append("Sat")
-        if WEEK_REPEAT & 0b01000000 == 0b01000000:
+        if WEEK_REPEAT & 0b1000000 == 0b1000000:
             alarm_week.append("Sun")
         return "Repeat on " + ", ".join(alarm_week)
 
@@ -120,7 +124,7 @@ class SugarMainWindow(Ui_MainWindow):
     def update_time(self, sys_time, rtc_time):
         _translate = QtCore.QCoreApplication.translate
         sys_time_string = time.asctime(time.localtime(sys_time))
-        rtc_time_string = time.strftime("%b %d %H:%M:%S %Y", rtc_time)
+        rtc_time_string = time.strftime("%w %b %d %H:%M:%S %Y", rtc_time)
         self.actionRTC_Time.setText(_translate("MainWindow", "RTC Time :    " + rtc_time_string))
         self.actionPi_Time.setText(_translate("MainWindow", "Pi Time : " + sys_time_string))
 
@@ -141,85 +145,85 @@ class SugarRepeatForm(Ui_RepeatForm):
 
     def update_checkbox(self):
         global WEEK_REPEAT
-        self.checkBoxEveryday.setChecked(WEEK_REPEAT == 0b01111111)
-        self.checkBoxEveryday.setDisabled(WEEK_REPEAT == 0b01111111)
-        self.checkBoxMonday.setChecked(WEEK_REPEAT & 0b00000001 == 0b00000001)
-        self.checkBoxTuesday.setChecked(WEEK_REPEAT & 0b00000010 == 0b00000010)
-        self.checkBoxWednesday.setChecked(WEEK_REPEAT & 0b00000100 == 0b00000100)
-        self.checkBoxTursday.setChecked(WEEK_REPEAT & 0b00001000 == 0b00001000)
-        self.checkBoxFriday.setChecked(WEEK_REPEAT & 0b00010000 == 0b00010000)
-        self.checkBoxSaturday.setChecked(WEEK_REPEAT & 0b00100000 == 0b00100000)
-        self.checkBoxSunday.setChecked(WEEK_REPEAT & 0b01000000 == 0b01000000)
-        self.checkBoxOnce.setChecked(WEEK_REPEAT == 0b00000000)
+        self.checkBoxEveryday.setChecked(WEEK_REPEAT == 0b1111111)
+        self.checkBoxEveryday.setDisabled(WEEK_REPEAT == 0b1111111)
+        self.checkBoxMonday.setChecked(WEEK_REPEAT & 0b0000001 == 0b0000001)
+        self.checkBoxTuesday.setChecked(WEEK_REPEAT & 0b0000010 == 0b0000010)
+        self.checkBoxWednesday.setChecked(WEEK_REPEAT & 0b0000100 == 0b0000100)
+        self.checkBoxTursday.setChecked(WEEK_REPEAT & 0b0001000 == 0b0001000)
+        self.checkBoxFriday.setChecked(WEEK_REPEAT & 0b0010000 == 0b0010000)
+        self.checkBoxSaturday.setChecked(WEEK_REPEAT & 0b0100000 == 0b0100000)
+        self.checkBoxSunday.setChecked(WEEK_REPEAT & 0b1000000 == 0b1000000)
+        self.checkBoxOnce.setChecked(WEEK_REPEAT == 0b0000000)
 
         main_window.check_clock_set()
 
     def once_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = 0b00000000
+            WEEK_REPEAT = 0b0000000
         self.update_checkbox()
 
     def everyday_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = 0b01111111
+            WEEK_REPEAT = 0b1111111
         self.update_checkbox()
 
     def mon_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00000001
+            WEEK_REPEAT = WEEK_REPEAT | 0b0000001
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01111110
+            WEEK_REPEAT = WEEK_REPEAT & 0b1111110
         self.update_checkbox()
 
     def tue_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00000010
+            WEEK_REPEAT = WEEK_REPEAT | 0b0000010
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01111101
+            WEEK_REPEAT = WEEK_REPEAT & 0b1111101
         self.update_checkbox()
 
     def wed_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00000100
+            WEEK_REPEAT = WEEK_REPEAT | 0b0000100
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01111011
+            WEEK_REPEAT = WEEK_REPEAT & 0b1111011
         self.update_checkbox()
 
     def thu_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00001000
+            WEEK_REPEAT = WEEK_REPEAT | 0b0001000
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01110111
+            WEEK_REPEAT = WEEK_REPEAT & 0b1110111
         self.update_checkbox()
 
     def fri_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00010000
+            WEEK_REPEAT = WEEK_REPEAT | 0b0010000
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01101111
+            WEEK_REPEAT = WEEK_REPEAT & 0b1101111
         self.update_checkbox()
 
     def sat_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b00100000
+            WEEK_REPEAT = WEEK_REPEAT | 0b0100000
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b01011111
+            WEEK_REPEAT = WEEK_REPEAT & 0b1011111
         self.update_checkbox()
 
     def sun_check(self, value):
         global WEEK_REPEAT
         if value:
-            WEEK_REPEAT = WEEK_REPEAT | 0b01000000
+            WEEK_REPEAT = WEEK_REPEAT | 0b1000000
         else:
-            WEEK_REPEAT = WEEK_REPEAT & 0b00111111
+            WEEK_REPEAT = WEEK_REPEAT & 0b0111111
         self.update_checkbox()
 
 

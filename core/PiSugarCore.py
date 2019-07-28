@@ -33,8 +33,10 @@ class PiSugarCore:
         IS_RTC_ALIVE = True
         IS_BAT_ALIVE = True
 
+        print("PiSugar Core Initialling ...")
         # 清除rtc报警flag
         self.clean_clock_flag()
+
         self.battery_loop()
         self.rtc_loop()
         self.charge_check_loop()
@@ -136,6 +138,7 @@ class PiSugarCore:
     def read_clock_flag(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
+            print("Read clock flag:", ct)
             if ct & 0b00100000:
                 print("clock flag triggered")
                 return 1
@@ -144,6 +147,7 @@ class PiSugarCore:
                 return 1
 
     def clean_clock_flag(self):
+        print("Clean clock flag.")
         if self.read_clock_flag() == 1:
             with SMBusWrapper(1) as bus:
                 # 关闭写保护，写入数据
@@ -162,6 +166,7 @@ class PiSugarCore:
         with SMBusWrapper(1) as bus:
             ticks = time.time()
             localtime = time.localtime(ticks)
+            print(localtime)
             bcd = self.__time2bcd(localtime)
             # 设置为24小时制
             bcd[2] = bcd[2] | 0b10000000
@@ -228,9 +233,9 @@ class PiSugarCore:
             # 数据写入完毕，打开写保护
             self.__enable_rtc_write_protect()
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
-            print("CTR1数据为：", bin(ct))
+            # print("CTR1数据为：", bin(ct))
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
-            print("CTR2数据为：", bin(ct))
+            # print("CTR2数据为：", bin(ct))
             block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0x07, 7)
             print(block)
 
@@ -372,20 +377,16 @@ if __name__ == "__main__":
     core = PiSugarCore()
     core.sync_time_pi2rtc()
     # core.battery_shutdown_set()
-    # current_time = core.read_time()
-    # current_time[0] = current_time[0] + 30
-    # current_time[1] = current_time[1] + 1
-    # if current_time[0] >= 60:
-    #     current_time[1] = current_time[1] + 1
-    #     current_time[0] = current_time[0] - 60
-    #
-    # if current_time[1] >= 60:
-    #     current_time[1] = current_time[1] - 60
-    #     current_time[2] = current_time[2] + 1
-    # core.clock_time_set(current_time, 0b0111111)
-    # while True:
-    #     core.BATTERY_I = core.read_battery_i()
-    #     core.BATTERY_V = core.read_battery_v()
-    #     print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
-    #     time.sleep(1)
+    current_time = core.read_time()
+    current_time[0] = current_time[0] + 30
+    current_time[1] = current_time[1] + 1
+    if current_time[0] >= 60:
+        current_time[1] = current_time[1] + 1
+        current_time[0] = current_time[0] - 60
+
+    if current_time[1] >= 60:
+        current_time[1] = current_time[1] - 60
+        current_time[2] = current_time[2] + 1
+    core.clock_time_set(current_time, 0b0111111)
+
     print("Hello PiSugar 2")
