@@ -23,6 +23,7 @@ class PiSugarCore:
     CTR3 = 0x11
 
     UPDATE_INTERVAL = 1
+    TIME_UPDATE_INTERVAL = 0.5
     RTC_TIME = None
 
 
@@ -157,11 +158,11 @@ class PiSugarCore:
         return
 
     def sync_time_pi2rtc(self):
+        print("Syncing Pi time to RTC...")
         with SMBusWrapper(1) as bus:
             ticks = time.time()
             localtime = time.localtime(ticks)
             bcd = self.__time2bcd(localtime)
-
             # 设置为24小时制
             bcd[2] = bcd[2] | 0b10000000
 
@@ -221,8 +222,8 @@ class PiSugarCore:
             print("预计写入的数据为：", bin(ct))
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
 
-            # 设置报警允许位为周小时分钟秒
-            bus.write_byte_data(self.RTC_ADDRESS, 0X0E, 0b00001111)
+            # 设置报警允许位为小时分钟秒
+            bus.write_byte_data(self.RTC_ADDRESS, 0X0E, 0b00000111)
 
             # 数据写入完毕，打开写保护
             self.__enable_rtc_write_protect()
@@ -300,7 +301,7 @@ class PiSugarCore:
 
     def rtc_loop(self):
         self.read_time()
-        threading.Timer(self.UPDATE_INTERVAL, self.rtc_loop).start()
+        threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
 
     def charge_check_loop(self):
         if self.BATTERY_LEVEL == -1:
@@ -317,7 +318,7 @@ class PiSugarCore:
         min_lv = min(self.BATTERY_LEVEL_RECORD)
         min_index = self.BATTERY_LEVEL_RECORD.index(min_lv)
         result = None
-        if max_lv - min_lv > 3:
+        if max_lv - min_lv > 1.5:
             if max_index > min_index:
                 result = True
             else:

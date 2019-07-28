@@ -4,23 +4,92 @@ from PyQt5.QtWidgets import *
 import threading
 import time
 from ui.mainWindowUI import Ui_MainWindow
+from ui.repeatForm import Ui_RepeatForm
 from core.PiSugarCore import PiSugarCore
 
-
-battery_percent = 0
+SYS_TIME = 0
+RTC_TIME = 0
+BATTERY_PERCENT = 0
+TIME_TYPE = 0
+TIME_SET = QtCore.QTime(0, 0)
+WEEK_REPEAT = 0b00000000
 
 
 class SugarMainWindow(Ui_MainWindow):
 
     def __init__(self, MainWindow):
         super().setupUi(MainWindow)
-        self.editSingleTap.clicked.connect(self.helloworld)
-    
-    def helloworld(self):
-        print("Hello")
 
-    def updateBatteryStatus(self, percent, votage, current, model, battery_is_charging):
+        self.timeType.currentIndexChanged.connect(self.time_type_change)
+        self.timeEdit.setDisplayFormat("hh:mm:ss")
+        self.timeEdit.timeChanged.connect(self.time_change)
+        self.timeType.setCurrentIndex(TIME_TYPE)
+        self.actionSync_Time_Pi_to_RTC.triggered.connect(self.sync_time_pi_rtc)
+        self.timeReapeat.clicked.connect(self.open_repeat_win)
+        self.check_clock_set()
 
+    def time_type_change(self, index):
+        global TIME_TYPE
+        TIME_TYPE = index
+        if index != 1:
+            RepeatForm.hide()
+        self.check_clock_set()
+
+    def time_change(self, time):
+        global TIME_SET
+        TIME_SET = time
+        self.check_clock_set()
+
+    def open_repeat_win(self):
+        RepeatForm.show()
+        RepeatForm.activateWindow()
+
+    def check_clock_set(self):
+        _translate = QtCore.QCoreApplication.translate
+        global TIME_SET
+        global TIME_TYPE
+        global WEEK_REPEAT
+        if TIME_TYPE == 1:
+            self.timeEdit.setDisabled(False)
+            self.timeReapeat.setDisabled(False)
+            time_to_set = core.read_time()
+            time_to_set[0] = TIME_SET.second()
+            time_to_set[1] = TIME_SET.minute()
+            time_to_set[2] = TIME_SET.hour()
+            core.clock_time_set(time_to_set, WEEK_REPEAT)
+            self.clockMsg.setText(_translate("MainWindow", self.get_clock_msg()))
+        else:
+            self.timeEdit.setDisabled(True)
+            self.timeReapeat.setDisabled(True)
+            self.clockMsg.setText(_translate("MainWindow", "Auto Boot Off"))
+
+    def get_clock_msg(self):
+        global WEEK_REPEAT
+        if WEEK_REPEAT == 0b01111111:
+            return "Everyday"
+        if WEEK_REPEAT == 0b00000000:
+            return "Once"
+        alarm_week = []
+        if WEEK_REPEAT & 0b00000001 == 0b00000001:
+            alarm_week.append("Mon")
+        if WEEK_REPEAT & 0b00000010 == 0b00000010:
+            alarm_week.append("Tue")
+        if WEEK_REPEAT & 0b00000100 == 0b00000100:
+            alarm_week.append("Wed")
+        if WEEK_REPEAT & 0b00001000 == 0b00001000:
+            alarm_week.append("Thu")
+        if WEEK_REPEAT & 0b00010000 == 0b00010000:
+            alarm_week.append("Fri")
+        if WEEK_REPEAT & 0b00100000 == 0b00100000:
+            alarm_week.append("Sat")
+        if WEEK_REPEAT & 0b01000000 == 0b01000000:
+            alarm_week.append("Sun")
+        return "Repeat on " + ", ".join(alarm_week)
+
+    def sync_time_pi_rtc(self):
+        core.sync_time_pi2rtc()
+
+    def update_battery_status(self, percent, votage, current, model, battery_is_charging):
         rect = QtCore.QRect(80, 140, int(125 * percent / 100), 65)
         self.greenStatus.setGeometry(rect)
         self.yellowStatus.setGeometry(rect)
@@ -34,7 +103,6 @@ class SugarMainWindow(Ui_MainWindow):
             self.yellowStatus.show()
         else:
             self.yellowStatus.hide()
-
         if 0 <= percent < 10:
             self.redStatus.show()
         else:
@@ -47,30 +115,148 @@ class SugarMainWindow(Ui_MainWindow):
         self.powerLabel.setText(_translate("MainWindow", "Power: " + str(round(power, 2)) + "W"))
         charging_str = " [charging]️" if battery_is_charging else ""
         self.modelLabel.setText(_translate("MainWindow", model + charging_str))
-        print(percent, votage)
+        # print(percent, votage)
+
+    def update_time(self, sys_time, rtc_time):
+        _translate = QtCore.QCoreApplication.translate
+        sys_time_string = time.asctime(time.localtime(sys_time))
+        rtc_time_string = time.strftime("%b %d %H:%M:%S %Y", rtc_time)
+        self.actionRTC_Time.setText(_translate("MainWindow", "RTC Time :    " + rtc_time_string))
+        self.actionPi_Time.setText(_translate("MainWindow", "Pi Time : " + sys_time_string))
+
+
+class SugarRepeatForm(Ui_RepeatForm):
+
+    def __init__(self, RepeatForm):
+        super().setupUi(RepeatForm)
+        self.checkBoxOnce.clicked.connect(self.once_check)
+        self.checkBoxEveryday.clicked.connect(self.everyday_check)
+        self.checkBoxMonday.clicked.connect(self.mon_check)
+        self.checkBoxTuesday.clicked.connect(self.tue_check)
+        self.checkBoxWednesday.clicked.connect(self.wed_check)
+        self.checkBoxTursday.clicked.connect(self.thu_check)
+        self.checkBoxFriday.clicked.connect(self.fri_check)
+        self.checkBoxSaturday.clicked.connect(self.sat_check)
+        self.checkBoxSunday.clicked.connect(self.sun_check)
+
+    def update_checkbox(self):
+        global WEEK_REPEAT
+        self.checkBoxEveryday.setChecked(WEEK_REPEAT == 0b01111111)
+        self.checkBoxEveryday.setDisabled(WEEK_REPEAT == 0b01111111)
+        self.checkBoxMonday.setChecked(WEEK_REPEAT & 0b00000001 == 0b00000001)
+        self.checkBoxTuesday.setChecked(WEEK_REPEAT & 0b00000010 == 0b00000010)
+        self.checkBoxWednesday.setChecked(WEEK_REPEAT & 0b00000100 == 0b00000100)
+        self.checkBoxTursday.setChecked(WEEK_REPEAT & 0b00001000 == 0b00001000)
+        self.checkBoxFriday.setChecked(WEEK_REPEAT & 0b00010000 == 0b00010000)
+        self.checkBoxSaturday.setChecked(WEEK_REPEAT & 0b00100000 == 0b00100000)
+        self.checkBoxSunday.setChecked(WEEK_REPEAT & 0b01000000 == 0b01000000)
+        self.checkBoxOnce.setChecked(WEEK_REPEAT == 0b00000000)
+
+        main_window.check_clock_set()
+
+    def once_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = 0b00000000
+        self.update_checkbox()
+
+    def everyday_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = 0b01111111
+        self.update_checkbox()
+
+    def mon_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00000001
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01111110
+        self.update_checkbox()
+
+    def tue_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00000010
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01111101
+        self.update_checkbox()
+
+    def wed_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00000100
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01111011
+        self.update_checkbox()
+
+    def thu_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00001000
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01110111
+        self.update_checkbox()
+
+    def fri_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00010000
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01101111
+        self.update_checkbox()
+
+    def sat_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b00100000
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b01011111
+        self.update_checkbox()
+
+    def sun_check(self, value):
+        global WEEK_REPEAT
+        if value:
+            WEEK_REPEAT = WEEK_REPEAT | 0b01000000
+        else:
+            WEEK_REPEAT = WEEK_REPEAT & 0b00111111
+        self.update_checkbox()
 
 
 def refresh_battery():
-    global battery_percent
-    battery_percent = core.get_battery_percent()
+    global BATTERY_PERCENT
+    BATTERY_PERCENT = core.get_battery_percent()
     battery_votage = core.get_battery_votage()
     battery_current = core.get_battery_current()
     battery_model = core.get_model()
     battery_is_charging = core.get_battery_charging_status()
 
-    main_window.updateBatteryStatus(battery_percent, battery_votage, battery_current, battery_model, battery_is_charging)
-    action_percent.setText("Battery Level: " + str(int(battery_percent)) + "%")
-    update_tray_icon(battery_percent, battery_model, battery_is_charging)
+    # update UI
+    main_window.update_battery_status(BATTERY_PERCENT, battery_votage, battery_current, battery_model, battery_is_charging)
+    action_percent.setText("Battery Level: " + str(int(BATTERY_PERCENT)) + "%")
+    tray.setToolTip("Battery: " + str(int(BATTERY_PERCENT)) + "%")
+    update_tray_icon(BATTERY_PERCENT, battery_model, battery_is_charging)
 
-    localtime = time.asctime(time.localtime(time.time()))
-
-    f = open('record.txt', 'a+')
-    new = str(localtime) + " : " + str(battery_votage) + " : " + str(int(battery_percent)) + "\n"
-    f.write(new)
-    f.flush()
-    f.close()
+    # localtime = time.asctime(time.localtime(time.time()))
+    # f = open('record.txt', 'a+')
+    # new = str(localtime) + " : " + str(battery_votage) + " : " + str(int(BATTERY_PERCENT)) + "\n"
+    # f.write(new)
+    # f.flush()
+    # f.close()
 
     threading.Timer(2.0, refresh_battery).start()
+
+
+def refresh_time():
+    global SYS_TIME
+    global RTC_TIME
+    SYS_TIME = time.time()
+    RTC_TIME = core.get_rtc_time()
+
+    #update UI
+    main_window.update_time(SYS_TIME, RTC_TIME)
+
+    threading.Timer(0.5, refresh_time).start()
 
 
 def update_tray_icon(precent, model, is_charging):
@@ -101,8 +287,10 @@ def open_main_window():
 if __name__ == "__main__":
     import sys
 
-    print("Hello world")
+    # initial core
     core = PiSugarCore()
+
+    # create the main window
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("fusion")
@@ -110,7 +298,7 @@ if __name__ == "__main__":
     main_window = SugarMainWindow(MainWindow)
     MainWindow.show()
 
-    # Create the tray icon
+    # create the tray icon
     tray_icon = QIcon(sys.path[0] + "/icon/battery_f.svg")
     tray = QSystemTrayIcon()
     tray.setIcon(tray_icon)
@@ -128,7 +316,12 @@ if __name__ == "__main__":
     # menu.addAction(action_exit)
     tray.setContextMenu(menu)
 
-    # start refreshing battery info
+    # start refreshing ui
     refresh_battery()
+    refresh_time()
+
+    # create repeat form
+    RepeatForm = QWidget()
+    repeatForm = SugarRepeatForm(RepeatForm)
 
     sys.exit(app.exec_())
