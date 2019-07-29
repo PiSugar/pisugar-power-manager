@@ -102,7 +102,7 @@ class PiSugarCore:
             PiSugarCore.__ten2bcd(local_time.tm_sec),
             PiSugarCore.__ten2bcd(local_time.tm_min),
             PiSugarCore.__ten2bcd(local_time.tm_hour),
-            PiSugarCore.__ten2bcd(local_time.tm_wday),
+            PiSugarCore.__ten2bcd((local_time.tm_wday - 1) % 7),
             PiSugarCore.__ten2bcd(local_time.tm_mday),
             PiSugarCore.__ten2bcd(local_time.tm_mon),
             PiSugarCore.__ten2bcd(local_time.tm_year % 100)

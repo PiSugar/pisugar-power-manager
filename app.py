@@ -75,19 +75,19 @@ class SugarMainWindow(Ui_MainWindow):
             return "Once"
         alarm_week = []
         if WEEK_REPEAT & 0b0000001 == 0b0000001:
-            alarm_week.append("Mon")
-        if WEEK_REPEAT & 0b0000010 == 0b0000010:
-            alarm_week.append("Tue")
-        if WEEK_REPEAT & 0b0000100 == 0b0000100:
-            alarm_week.append("Wed")
-        if WEEK_REPEAT & 0b0001000 == 0b0001000:
-            alarm_week.append("Thu")
-        if WEEK_REPEAT & 0b0010000 == 0b0010000:
-            alarm_week.append("Fri")
-        if WEEK_REPEAT & 0b0100000 == 0b0100000:
-            alarm_week.append("Sat")
-        if WEEK_REPEAT & 0b1000000 == 0b1000000:
             alarm_week.append("Sun")
+        if WEEK_REPEAT & 0b0000010 == 0b0000010:
+            alarm_week.append("Mon")
+        if WEEK_REPEAT & 0b0000100 == 0b0000100:
+            alarm_week.append("Tue")
+        if WEEK_REPEAT & 0b0001000 == 0b0001000:
+            alarm_week.append("Wed")
+        if WEEK_REPEAT & 0b0010000 == 0b0010000:
+            alarm_week.append("Thu")
+        if WEEK_REPEAT & 0b0100000 == 0b0100000:
+            alarm_week.append("Fri")
+        if WEEK_REPEAT & 0b1000000 == 0b1000000:
+            alarm_week.append("Sat")
         return "Repeat on " + ", ".join(alarm_week)
 
     def sync_time_pi_rtc(self):
@@ -147,15 +147,14 @@ class SugarRepeatForm(Ui_RepeatForm):
         global WEEK_REPEAT
         self.checkBoxEveryday.setChecked(WEEK_REPEAT == 0b1111111)
         self.checkBoxEveryday.setDisabled(WEEK_REPEAT == 0b1111111)
-        self.checkBoxMonday.setChecked(WEEK_REPEAT & 0b0000001 == 0b0000001)
-        self.checkBoxTuesday.setChecked(WEEK_REPEAT & 0b0000010 == 0b0000010)
-        self.checkBoxWednesday.setChecked(WEEK_REPEAT & 0b0000100 == 0b0000100)
-        self.checkBoxTursday.setChecked(WEEK_REPEAT & 0b0001000 == 0b0001000)
-        self.checkBoxFriday.setChecked(WEEK_REPEAT & 0b0010000 == 0b0010000)
-        self.checkBoxSaturday.setChecked(WEEK_REPEAT & 0b0100000 == 0b0100000)
-        self.checkBoxSunday.setChecked(WEEK_REPEAT & 0b1000000 == 0b1000000)
+        self.checkBoxSunday.setChecked(WEEK_REPEAT & 0b0000001 == 0b00000001)
+        self.checkBoxMonday.setChecked(WEEK_REPEAT & 0b0000010 == 0b00000010)
+        self.checkBoxTuesday.setChecked(WEEK_REPEAT & 0b0000100 == 0b00000100)
+        self.checkBoxWednesday.setChecked(WEEK_REPEAT & 0b0001000 == 0b00001000)
+        self.checkBoxTursday.setChecked(WEEK_REPEAT & 0b0010000 == 0b00010000)
+        self.checkBoxFriday.setChecked(WEEK_REPEAT & 0b0100000 == 0b00100000)
+        self.checkBoxSaturday.setChecked(WEEK_REPEAT & 0b1000000 == 0b1000000)
         self.checkBoxOnce.setChecked(WEEK_REPEAT == 0b0000000)
-
         main_window.check_clock_set()
 
     def once_check(self, value):
@@ -170,7 +169,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = 0b1111111
         self.update_checkbox()
 
-    def mon_check(self, value):
+    def sun_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0000001
@@ -178,7 +177,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1111110
         self.update_checkbox()
 
-    def tue_check(self, value):
+    def mon_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0000010
@@ -186,7 +185,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1111101
         self.update_checkbox()
 
-    def wed_check(self, value):
+    def tue_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0000100
@@ -194,7 +193,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1111011
         self.update_checkbox()
 
-    def thu_check(self, value):
+    def wed_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0001000
@@ -202,7 +201,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1110111
         self.update_checkbox()
 
-    def fri_check(self, value):
+    def thu_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0010000
@@ -210,7 +209,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1101111
         self.update_checkbox()
 
-    def sat_check(self, value):
+    def fri_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b0100000
@@ -218,7 +217,7 @@ class SugarRepeatForm(Ui_RepeatForm):
             WEEK_REPEAT = WEEK_REPEAT & 0b1011111
         self.update_checkbox()
 
-    def sun_check(self, value):
+    def sat_check(self, value):
         global WEEK_REPEAT
         if value:
             WEEK_REPEAT = WEEK_REPEAT | 0b1000000
