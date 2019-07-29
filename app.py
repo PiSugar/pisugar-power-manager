@@ -119,7 +119,7 @@ class SugarMainWindow(Ui_MainWindow):
         self.powerLabel.setText(_translate("MainWindow", "Power: " + str(round(power, 2)) + "W"))
         charging_str = " [charging]️" if battery_is_charging else ""
         self.modelLabel.setText(_translate("MainWindow", model + charging_str))
-        # print(percent, votage)
+        print(percent, votage)
 
     def update_time(self, sys_time, rtc_time):
         _translate = QtCore.QCoreApplication.translate

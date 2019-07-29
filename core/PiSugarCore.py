@@ -323,7 +323,7 @@ class PiSugarCore:
         min_lv = min(self.BATTERY_LEVEL_RECORD)
         min_index = self.BATTERY_LEVEL_RECORD.index(min_lv)
         result = None
-        if max_lv - min_lv > 1.5:
+        if max_lv - min_lv > 1:
             if max_index > min_index:
                 result = True
             else:
@@ -345,19 +345,17 @@ class PiSugarCore:
 
     def get_battery_percent(self):
         batter_curve = [
-            [4.13, 5.5, 100, 100],
-            [4.06, 4.13, 90, 100],
-            [3.98, 4.06, 80, 90],
-            [3.92, 3.98, 70, 80],
-            [3.87, 3.92, 60, 70],
-            [3.82, 3.87, 50, 60],
-            [3.79, 3.82, 40, 50],
-            [3.77, 3.79, 30, 40],
-            [3.74, 3.77, 20, 30],
-            [3.68, 3.74, 10, 20],
-            [3.45, 3.68, 5, 10],
-            [3, 3.45, 0, 5],
-            [0, 3, 0, 0]
+            [4.10, 5.5, 100, 100],
+            [4.05, 4.10, 87.5, 100],
+            [4.00, 4.05, 75, 87.5],
+            [3.92, 4.00, 62.5, 75],
+            [3.86, 3.92, 50, 62.5],
+            [3.79, 3.86, 37.5, 50],
+            [3.66, 3.79, 25, 37.5],
+            [3.52, 3.66, 12.5, 25],
+            [3.49, 3.52, 6.2, 12.5],
+            [3.1, 3.49, 0, 6.2],
+            [0, 3.1, 0, 0],
         ]
         batter_level = 0
         for range in batter_curve:
