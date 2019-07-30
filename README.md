@@ -35,7 +35,8 @@ $ echo get battery | nc -U /tmp/pisugar.sock
 63.15938281249997
 
 # e.g. set auto wake up alarm on 15:39:00 repeat on Sun, Mon, Tue, Wed, Sat
-echo rtc_clock_set 0,39,15,0,0,0,0 0b1001111 | nc -U /tmp/pisugar.sock
+$ echo rtc_clock_set 0,39,15,0,0,0,0 0b1001111 | nc -U /tmp/pisugar.sock
+Done.
 
 ```
 
