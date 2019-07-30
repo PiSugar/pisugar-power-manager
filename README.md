@@ -17,17 +17,17 @@ $ python3 core/PiSugarCore.py
 # core program will create a unix domain socket file: /tmp/pisugar.sock
 # use following commands to get / set data from the battery
 
-# get model
-# get battery
-# get battery_v
-# get battery_i
-# get battery_charging
-# get rtc_time
-# get rtc_time_list
-# get rtc_clock_flag
-# rtc_clean_flag
-# rtc_pi2rtc
-# rtc_clock_set
+# get model  (pisugar model)
+# get battery  (battery level percent)
+# get battery_v  (lithium battery votage)
+# get battery_i  (lithium battery current)
+# get battery_charging  (charging status)
+# get rtc_time  (rtc time string)
+# get rtc_time_list  (rtc time in python list)
+# get rtc_clock_flag  (rtc alarm flag)
+# rtc_clean_flag  (clean alarm flag)
+# rtc_pi2rtc  (sync time from Pi to rtc)
+# rtc_clock_set  (set auto wake up alarm)
 
 # e.g. get battery level precentage
 $ echo get battery | nc -U /tmp/pisugar.sock
