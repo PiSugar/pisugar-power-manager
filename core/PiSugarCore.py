@@ -375,6 +375,21 @@ class PiSugarCore:
     def get_model(self):
         return "PiSugar 2"
 
+    def set_test_wake(self):
+        print("wakeup after 1min30sec")
+        self.sync_time_pi2rtc()
+        current_time = self.read_time()
+        current_time[0] = current_time[0] + 30
+        current_time[1] = current_time[1] + 1
+        if current_time[0] >= 60:
+            current_time[1] = current_time[1] + 1
+            current_time[0] = current_time[0] - 60
+
+        if current_time[1] >= 60:
+            current_time[1] = current_time[1] - 60
+            current_time[2] = current_time[2] + 1
+        self.clock_time_set(current_time, 0b0111111)
+
     def socket_server(self):
         try:
             os.unlink(self.SERVER_ADDRESS)
@@ -418,6 +433,8 @@ class PiSugarCore:
 
         try:
             if req_arr[0] == "get":
+                if req_arr[1] == "model":
+                    res_str = self.get_model()
                 if req_arr[1] == "battery":
                     res_str = str(self.BATTERY_LEVEL)
                 if req_arr[1] == "battery_v":
@@ -433,12 +450,11 @@ class PiSugarCore:
                     res_str = str(self.read_clock_flag())
             if req_arr[0] == "rtc_clean_flag":
                 self.clean_clock_flag()
-                res_str = str("done")
+                res_str = "done"
             if req_arr[0] == "rtc_pi2rtc":
                 self.sync_time_pi2rtc()
-                res_str = str("done")
+                res_str = "done"
             if req_arr[0] == "rtc_clock_set":
-                print(req_arr)
                 argv1 = req_arr[1]
                 argv2 = req_arr[2]
                 try:
@@ -446,10 +462,13 @@ class PiSugarCore:
                     week_repeat = int(argv2, 2)
                     self.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
                     self.clean_clock_flag()
-                    res_str = str("done")
+                    res_str = "done"
                 except Exception as e:
                     print(e)
                     return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+            if req_arr[0] == "rtc_test_wake":
+                self.set_test_wake()
+                res_str = "wakeup after 1 min 30 sec"
         except Exception as e:
             print(e)
             return bytes('Invalid arguments.' + "\n", encoding='utf-8')
@@ -460,23 +479,9 @@ class PiSugarCore:
 
 
 if __name__ == "__main__":
-
-    print("wakeup after 1min30sec")
-
     core = PiSugarCore()
 
-    # core.sync_time_pi2rtc()
-    # # core.battery_shutdown_set()
-    # current_time = core.read_time()
-    # current_time[0] = current_time[0] + 30
-    # current_time[1] = current_time[1] + 1
-    # if current_time[0] >= 60:
-    #     current_time[1] = current_time[1] + 1
-    #     current_time[0] = current_time[0] - 60
-    #
-    # if current_time[1] >= 60:
-    #     current_time[1] = current_time[1] - 60
-    #     current_time[2] = current_time[2] + 1
-    # core.clock_time_set(current_time, 0b0111111)
+    # wake up after 1 min 30 sec
+    #core.set_test_wake()
 
     print("Hello PiSugar 2")
