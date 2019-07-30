@@ -4,7 +4,10 @@
 import time
 import threading
 from smbus2 import SMBusWrapper
-
+import socket
+import sys
+import os
+import gevent
 
 class PiSugarCore:
 
@@ -25,7 +28,9 @@ class PiSugarCore:
     UPDATE_INTERVAL = 1
     TIME_UPDATE_INTERVAL = 0.5
     RTC_TIME = None
+    RTC_TIME_LIST = None
 
+    SERVER_ADDRESS = '/tmp/pisugar.sock'
 
     def __init__(self):
 
@@ -33,13 +38,14 @@ class PiSugarCore:
         IS_RTC_ALIVE = True
         IS_BAT_ALIVE = True
 
-        print("PiSugar Core Initialling ...")
+        print("Initialing PiSugar Core ...")
         # 清除rtc报警flag
         self.clean_clock_flag()
 
         self.battery_loop()
         self.rtc_loop()
         self.charge_check_loop()
+        self.start_socket_server()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -83,7 +89,7 @@ class PiSugarCore:
     def __bcd2time(bcd):
 
         # time模组处理str的时候，周数会自动减一。例如，数字3代表周三，但是time模组以周日为第一天，读取以后会自动减一。SD3078也是周日为第一天，此处手动加1解决匹配的问题
-        bcd[3] = (bcd[3] + 1) % 7
+        bcd[3] = (bcd[3] - 1) % 7
 
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19
         str1 = ' '.join([str(PiSugarCore.__bcd2ten(x)) for x in bcd])
@@ -102,7 +108,7 @@ class PiSugarCore:
             PiSugarCore.__ten2bcd(local_time.tm_sec),
             PiSugarCore.__ten2bcd(local_time.tm_min),
             PiSugarCore.__ten2bcd(local_time.tm_hour),
-            PiSugarCore.__ten2bcd((local_time.tm_wday - 1) % 7),
+            PiSugarCore.__ten2bcd((local_time.tm_wday + 1) % 7),
             PiSugarCore.__ten2bcd(local_time.tm_mday),
             PiSugarCore.__ten2bcd(local_time.tm_mon),
             PiSugarCore.__ten2bcd(local_time.tm_year % 100)
@@ -145,6 +151,7 @@ class PiSugarCore:
             if ct & 0b00010000:
                 print("clock flag triggered")
                 return 1
+            return 0
 
     def clean_clock_flag(self):
         print("Clean clock flag.")
@@ -190,6 +197,7 @@ class PiSugarCore:
             # print("System time：", self.__time2ten(time.localtime(time.time())))
             # print("RTC time", time.strftime("%Y--%m--%d %H:%M:%S", time_ic))
             # time.sleep(1)
+            self.RTC_TIME_LIST = time_ic
             return time_ic
 
     def get_rtc_time(self):
@@ -345,8 +353,8 @@ class PiSugarCore:
 
     def get_battery_percent(self):
         batter_curve = [
-            [4.10, 5.5, 100, 100],
-            [4.05, 4.10, 87.5, 100],
+            [4.16, 5.5, 100, 100],
+            [4.05, 4.16, 87.5, 100],
             [4.00, 4.05, 75, 87.5],
             [3.92, 4.00, 62.5, 75],
             [3.86, 3.92, 50, 62.5],
@@ -367,24 +375,108 @@ class PiSugarCore:
     def get_model(self):
         return "PiSugar 2"
 
+    def socket_server(self):
+        try:
+            os.unlink(self.SERVER_ADDRESS)
+        except OSError:
+            if os.path.exists(self.SERVER_ADDRESS):
+                raise
+        # Create a UDS socket
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+        # Bind the socket to the port
+        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS)
+        sock.bind(self.SERVER_ADDRESS)
+
+        # Listen for incoming connections
+        sock.listen(1)
+
+        while True:
+            # Wait for a connection
+            connection, client_address = sock.accept()
+            try:
+                while True:
+                    data = connection.recv(64)
+                    if data:
+                        # print(sys.stderr, 'sending data back to the client')
+                        response = self.socket_handler(data)
+                        connection.sendall(response)
+                        connection.close()
+                        break
+                    else:
+                        print(sys.stderr, 'no more data from', client_address)
+                        connection.close()
+                        break
+            finally:
+                # Clean up the connection
+                connection.close()
+
+    def socket_handler(self, data):
+        req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
+        req_arr = req_str.split(" ")
+        res_str = ""
+
+        try:
+            if req_arr[0] == "get":
+                if req_arr[1] == "battery":
+                    res_str = str(self.BATTERY_LEVEL)
+                if req_arr[1] == "battery_v":
+                    res_str = str(self.BATTERY_V)
+                if req_arr[1] == "battery_i":
+                    res_str = str(self.BATTERY_I)
+                if req_arr[1] == "rtc_time":
+                    res_str = time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
+                if req_arr[1] == "rtc_time_list":
+                    print(self.RTC_TIME_LIST)
+                    res_str = str(self.RTC_TIME_LIST)
+                if req_arr[1] == "rtc_clock_flag":
+                    res_str = str(self.read_clock_flag())
+            if req_arr[0] == "rtc_clean_flag":
+                self.clean_clock_flag()
+                res_str = str("done")
+            if req_arr[0] == "rtc_pi2rtc":
+                self.sync_time_pi2rtc()
+                res_str = str("done")
+            if req_arr[0] == "rtc_clock_set":
+                print(req_arr)
+                argv1 = req_arr[1]
+                argv2 = req_arr[2]
+                try:
+                    time_arr = list(map(int, argv1.split(",")))
+                    week_repeat = int(argv2, 2)
+                    self.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
+                    self.clean_clock_flag()
+                    res_str = str("done")
+                except Exception as e:
+                    print(e)
+                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+        except Exception as e:
+            print(e)
+            return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+        return bytes(res_str + "\n", encoding='utf-8')
+
+    def start_socket_server(self):
+        gevent.spawn(self.socket_server).join()
+
 
 if __name__ == "__main__":
 
     print("wakeup after 1min30sec")
 
     core = PiSugarCore()
-    core.sync_time_pi2rtc()
-    # core.battery_shutdown_set()
-    current_time = core.read_time()
-    current_time[0] = current_time[0] + 30
-    current_time[1] = current_time[1] + 1
-    if current_time[0] >= 60:
-        current_time[1] = current_time[1] + 1
-        current_time[0] = current_time[0] - 60
 
-    if current_time[1] >= 60:
-        current_time[1] = current_time[1] - 60
-        current_time[2] = current_time[2] + 1
-    core.clock_time_set(current_time, 0b0111111)
+    # core.sync_time_pi2rtc()
+    # # core.battery_shutdown_set()
+    # current_time = core.read_time()
+    # current_time[0] = current_time[0] + 30
+    # current_time[1] = current_time[1] + 1
+    # if current_time[0] >= 60:
+    #     current_time[1] = current_time[1] + 1
+    #     current_time[0] = current_time[0] - 60
+    #
+    # if current_time[1] >= 60:
+    #     current_time[1] = current_time[1] - 60
+    #     current_time[2] = current_time[2] + 1
+    # core.clock_time_set(current_time, 0b0111111)
 
     print("Hello PiSugar 2")

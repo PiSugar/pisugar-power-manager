@@ -3,17 +3,20 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import threading
 import time
+import os
 from ui.mainWindowUI import Ui_MainWindow
 from ui.repeatForm import Ui_RepeatForm
 from core.PiSugarCore import PiSugarCore
 
 SYS_TIME = 0
 RTC_TIME = 0
-BATTERY_PERCENT = 0
+BATTERY_PERCENT = -1
 TIME_TYPE = 0
 TIME_SET = QtCore.QTime(0, 0)
 WEEK_REPEAT = 0b0000000
 SHOULD_CLEAN_ALARM = False
+SAFE_SHUTDOWN_LEVEL = -1
+SAFE_SHUTDOWN_TRIGGERED = False
 
 
 class SugarMainWindow(Ui_MainWindow):
@@ -28,6 +31,8 @@ class SugarMainWindow(Ui_MainWindow):
         self.actionSync_Time_Pi_to_RTC.triggered.connect(self.sync_time_pi_rtc)
         self.timeReapeat.clicked.connect(self.open_repeat_win)
         self.check_clock_set()
+
+        self.safeShutdownLevel.currentIndexChanged.connect(self.safe_shutdown_change)
 
     def time_type_change(self, index):
         global TIME_TYPE
@@ -119,14 +124,22 @@ class SugarMainWindow(Ui_MainWindow):
         self.powerLabel.setText(_translate("MainWindow", "Power: " + str(round(power, 2)) + "W"))
         charging_str = " [charging]️" if battery_is_charging else ""
         self.modelLabel.setText(_translate("MainWindow", model + charging_str))
-        print(percent, votage)
+
+        if time.localtime(time.time()).tm_sec == 0:
+            logger("lv: " + str(percent) + "  v: " + str(votage))
 
     def update_time(self, sys_time, rtc_time):
         _translate = QtCore.QCoreApplication.translate
         sys_time_string = time.asctime(time.localtime(sys_time))
-        rtc_time_string = time.strftime("%w %b %d %H:%M:%S %Y", rtc_time)
+        rtc_time_string = time.strftime("%b %d %H:%M:%S %Y", rtc_time)
         self.actionRTC_Time.setText(_translate("MainWindow", "RTC Time :    " + rtc_time_string))
         self.actionPi_Time.setText(_translate("MainWindow", "Pi Time : " + sys_time_string))
+
+    def safe_shutdown_change(self, index):
+        global SAFE_SHUTDOWN_LEVEL
+        global SAFE_SHUTDOWN_TRIGGERED
+        SAFE_SHUTDOWN_LEVEL = index
+        SAFE_SHUTDOWN_TRIGGERED = False
 
 
 class SugarRepeatForm(Ui_RepeatForm):
@@ -240,12 +253,8 @@ def refresh_battery():
     tray.setToolTip("Battery: " + str(int(BATTERY_PERCENT)) + "%")
     update_tray_icon(BATTERY_PERCENT, battery_model, battery_is_charging)
 
-    # localtime = time.asctime(time.localtime(time.time()))
-    # f = open('record.txt', 'a+')
-    # new = str(localtime) + " : " + str(battery_votage) + " : " + str(int(BATTERY_PERCENT)) + "\n"
-    # f.write(new)
-    # f.flush()
-    # f.close()
+    # safe shutdown check
+    safe_shutdown_check()
 
     threading.Timer(2.0, refresh_battery).start()
 
@@ -285,6 +294,35 @@ def update_tray_icon(precent, model, is_charging):
 def open_main_window():
     MainWindow.show()
     MainWindow.activateWindow()
+
+
+def safe_shutdown_check():
+    global SAFE_SHUTDOWN_LEVEL
+    global BATTERY_PERCENT
+    global SAFE_SHUTDOWN_TRIGGERED
+    if SAFE_SHUTDOWN_TRIGGERED:
+        return
+    should_exectute = False
+    if SAFE_SHUTDOWN_LEVEL == 0 and 0 <= BATTERY_PERCENT < 6:
+        should_exectute = True
+    if SAFE_SHUTDOWN_LEVEL == 1 and 0 <= BATTERY_PERCENT < 4:
+        should_exectute = True
+    if SAFE_SHUTDOWN_LEVEL == 2 and 0 <= BATTERY_PERCENT < 2:
+        should_exectute = True
+    if should_exectute:
+        logger("Execute safe shutdown.")
+        SAFE_SHUTDOWN_TRIGGERED = True
+        os.system("shutdown now")
+
+
+def logger(log):
+    localtime = time.asctime(time.localtime(time.time()))
+    f = open('pisugar_log.txt', 'a+')
+    new = str(localtime) + " : " + log + "\n"
+    print(new)
+    f.write(new)
+    f.flush()
+    f.close()
 
 
 if __name__ == "__main__":
