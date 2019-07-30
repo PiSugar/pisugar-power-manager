@@ -441,6 +441,8 @@ class PiSugarCore:
                     res_str = str(self.BATTERY_V)
                 if req_arr[1] == "battery_i":
                     res_str = str(self.BATTERY_I)
+                if req_arr[1] == "battery_charging":
+                    res_str = str(self.IS_CHARGING)
                 if req_arr[1] == "rtc_time":
                     res_str = time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
                 if req_arr[1] == "rtc_time_list":
