@@ -30,7 +30,6 @@ $ python3 core/PiSugarCore.py
 # rtc_clock_set
 
 # e.g. get battery level precentage
-
 $ echo get battery | nc -U /tmp/pisugar.sock
 63.15938281249997
 
