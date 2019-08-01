@@ -48,7 +48,7 @@ class PiSugarCore:
         self.battery_loop()
         self.rtc_loop()
         self.charge_check_loop()
-        self.start_socket_server()
+  #      self.start_socket_server()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -326,16 +326,12 @@ class PiSugarCore:
             t = t & 0b11111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
 
-    # 设置电源芯片GPIO
+    # 读取电源芯片GPIO
     def read_battery_GPIO(self):
         with SMBusWrapper(1) as bus:
-            t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
-            if t&0b00010000:
-                print(1)
-                return 1
-            else:
-                print(0)
-                return 0
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
+            return t
+
 
 
 
@@ -519,8 +515,10 @@ class PiSugarCore:
 
 if __name__ == "__main__":
     core = PiSugarCore()
-
+    core.battery_GPIO_set()
     # wake up after 1 min 30 sec
-    #core.set_test_wake()
-
+    core.set_test_wake()
+    while 1:
+        time.sleep(0.15)
+        print(core.read_battery_GPIO())
     print("Hello PiSugar 2")
