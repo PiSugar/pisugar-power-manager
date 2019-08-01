@@ -7,7 +7,8 @@ from smbus2 import SMBusWrapper
 import socket
 import sys
 import os
-import gevent
+# import gevent
+import thread
 
 class PiSugarCore:
 
@@ -512,7 +513,8 @@ class PiSugarCore:
         return bytes(res_str + "\n", encoding='utf-8')
 
     def start_socket_server(self):
-        gevent.spawn(self.socket_server).join()
+        # gevent.spawn(self.socket_server).join()
+        thread.start_new_thread(self.socket_server)
 
 
 if __name__ == "__main__":
