@@ -3,3 +3,5 @@
 PiSugarCore/.idea/*
 core/test.py
 venv/*
+*.xml
+*.iml
