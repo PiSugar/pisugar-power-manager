@@ -41,6 +41,8 @@ class PiSugarCore:
         print("Initialing PiSugar Core ...")
         # 清除rtc报警flag
         self.clean_clock_flag()
+        # 初始化电池设置
+        self.battery_shutdown_threshold_set()
 
         self.battery_loop()
         self.rtc_loop()
@@ -302,6 +304,39 @@ class PiSugarCore:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x02)
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
+
+    # 设置电源芯片GPIO
+    def battery_GPIO_set(self):
+        with SMBusWrapper(1) as bus:
+            #将VSET更改为内部设置
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
+            t = t | 0b00000000
+            t = t & 0b10111111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x26, t)
+
+            #将VSET引脚更改为GPIO模式
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x52)
+            t = t | 0b00000100
+            t = t & 0b11110111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x52, t)
+            #将VSET的GPIO设置为输入
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x53)
+            t = t | 0b00010000
+            t = t & 0b11111111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
+
+    # 设置电源芯片GPIO
+    def read_battery_GPIO(self):
+        with SMBusWrapper(1) as bus:
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
+            if t&0b00010000:
+                print(1)
+                return 1
+            else:
+                print(0)
+                return 0
+
+
 
     def battery_loop(self):
         self.BATTERY_I = self.read_battery_i()
