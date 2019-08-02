@@ -7,8 +7,7 @@ from smbus2 import SMBusWrapper
 import socket
 import sys
 import os
-# import gevent
-import thread
+
 
 class PiSugarCore:
 
@@ -32,6 +31,7 @@ class PiSugarCore:
     RTC_TIME_LIST = None
 
     SERVER_ADDRESS = '/tmp/pisugar.sock'
+    SERVER_ADDRESS_UI = '/tmp/pisugar_ui.sock'
 
     def __init__(self):
 
@@ -40,15 +40,17 @@ class PiSugarCore:
         IS_BAT_ALIVE = True
 
         print("Initialing PiSugar Core ...")
-        # 清除rtc报警flag
-        self.clean_clock_flag()
-        # 初始化电池设置
-        self.battery_shutdown_threshold_set()
-
-        self.battery_loop()
-        self.rtc_loop()
-        self.charge_check_loop()
-  #      self.start_socket_server()
+        self.start_socket_server()
+        try:
+            self.clean_clock_flag()
+            self.battery_shutdown_threshold_set()
+            self.battery_loop()
+            self.rtc_loop()
+            self.gpio_loop()
+            self.charge_check_loop()
+            self.battery_gpio_set()
+        except OSError as e:
+            print(e)
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -306,34 +308,31 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
-    # 设置电源芯片GPIO
-    def battery_GPIO_set(self):
+    # set PMIC GPIO
+    def battery_gpio_set(self):
         with SMBusWrapper(1) as bus:
-            #将VSET更改为内部设置
+            # 将VSET更改为内部设置
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
             t = t | 0b00000000
             t = t & 0b10111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x26, t)
 
-            #将VSET引脚更改为GPIO模式
+            # 将VSET引脚更改为GPIO模式
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x52)
             t = t | 0b00000100
             t = t & 0b11110111
             bus.write_byte_data(self.BAT_ADDRESS, 0x52, t)
-            #将VSET的GPIO设置为输入
+            # 将VSET的GPIO设置为输入
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x53)
             t = t | 0b00010000
             t = t & 0b11111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
 
     # 读取电源芯片GPIO
-    def read_battery_GPIO(self):
+    def read_battery_gpio(self):
         with SMBusWrapper(1) as bus:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
             return t
-
-
-
 
     def battery_loop(self):
         self.BATTERY_I = self.read_battery_i()
@@ -347,6 +346,10 @@ class PiSugarCore:
     def rtc_loop(self):
         self.read_time()
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
+
+    def gpio_loop(self):
+        self.read_battery_gpio()
+        threading.Timer(0.15, self.read_battery_gpio).start()
 
     def charge_check_loop(self):
         if self.BATTERY_LEVEL == -1:
@@ -458,11 +461,44 @@ class PiSugarCore:
                 # Clean up the connection
                 connection.close()
 
+    def socket_server4ui(self):
+        try:
+            os.unlink(self.SERVER_ADDRESS_UI)
+        except OSError:
+            if os.path.exists(self.SERVER_ADDRESS_UI):
+                raise
+        # Create a UDS socket
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+        # Bind the socket to the port
+        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS_UI)
+        sock.bind(self.SERVER_ADDRESS_UI)
+
+        # Listen for incoming connections
+        sock.listen(1)
+
+        while True:
+            # Wait for a connection
+            connection, client_address = sock.accept()
+            try:
+                while True:
+                    data = connection.recv(64)
+                    if data:
+                        # print(sys.stderr, 'sending data back to the client')
+                        response = self.socket_handler(data)
+                        connection.sendall(response)
+                        break
+                    else:
+                        print(sys.stderr, 'no more data from', client_address)
+                        break
+            finally:
+                # Clean up the connection
+                connection.close()
+
     def socket_handler(self, data):
         req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
         req_arr = req_str.split(" ")
         res_str = ""
-
         try:
             if req_arr[0] == "get":
                 if req_arr[1] == "model":
@@ -509,16 +545,20 @@ class PiSugarCore:
         return bytes(res_str + "\n", encoding='utf-8')
 
     def start_socket_server(self):
-        # gevent.spawn(self.socket_server).join()
-        thread.start_new_thread(self.socket_server)
+        threading.Thread(name="server_thread", target=self.socket_server).start()
+
+    def start_socket_server4ui(self):
+        threading.Thread(name="server_thread", target=self.socket_server4ui).start()
 
 
 if __name__ == "__main__":
+
     core = PiSugarCore()
-    core.battery_GPIO_set()
+
+    # core.battery_GPIO_set()
     # wake up after 1 min 30 sec
-    core.set_test_wake()
-    while 1:
-        time.sleep(0.15)
-        print(core.read_battery_GPIO())
-    print("Hello PiSugar 2")
+    # core.set_test_wake()
+    # while 1:
+    #     time.sleep(0.15)
+    #     print(core.read_battery_GPIO())
+    # print("Hello PiSugar 2")
