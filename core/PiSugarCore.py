@@ -19,6 +19,7 @@ class PiSugarCore:
     BATTERY_LEVEL = -1
     BATTERY_I = 0
     BATTERY_V = 0
+    BATTERY_MODEL = ""
     RTC_ADDRESS = 0x32
     BAT_ADDRESS = 0x75
     CTR1 = 0x0f
@@ -33,11 +34,20 @@ class PiSugarCore:
     SERVER_ADDRESS = '/tmp/pisugar.sock'
     SERVER_ADDRESS_UI = '/tmp/pisugar_ui.sock'
 
-    def __init__(self):
+    AUTO_WAKE_TYPE = 0
+    AUTO_WAKE_TIME = time.time()
+    AUTO_WAKE_REPEAT = 0b0000000
 
-        # 初始化实例，检查i2c总线里各个芯片是否存在
-        IS_RTC_ALIVE = True
-        IS_BAT_ALIVE = True
+    SINGLE_TAP_ENABLE = False
+    SINGLE_TAP_SHELL = ""
+    DOUBLE_TAP_ENABLE = False
+    DOUBLE_TAP_SHELL = ""
+    LONG_TAP_ENABLE = False
+    LONG_TAP_SHELL = ""
+
+    AUTO_SHUTDOWN_PERCENT = -1
+
+    def __init__(self):
 
         print("Initialing PiSugar Core ...")
         self.start_socket_server()
@@ -51,6 +61,8 @@ class PiSugarCore:
             self.battery_gpio_set()
         except OSError as e:
             print(e)
+        IS_RTC_ALIVE = True
+        IS_BAT_ALIVE = True
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -285,6 +297,8 @@ class PiSugarCore:
             else:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
         # print("votage %d mV" % v)
+        if v != 0:
+            self.BATTERY_MODEL = "PiSugar 2"
         self.BATTERY_V = v
         return v
 
@@ -339,8 +353,6 @@ class PiSugarCore:
         self.BATTERY_V = self.read_battery_v()
         self.BATTERY_LEVEL = self.get_battery_percent()
         self.battery_shutdown_threshold_set()
-        # print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
-        # print("Battery level: %d%%" % self.BATTERY_LEVEL)
         threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
 
     def rtc_loop(self):
@@ -408,7 +420,7 @@ class PiSugarCore:
         return batter_level
 
     def get_model(self):
-        return "PiSugar 2"
+        return self.BATTERY_MODEL
 
     def set_test_wake(self):
         print("wakeup after 1min30sec")

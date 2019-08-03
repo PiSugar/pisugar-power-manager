@@ -1,7 +1,10 @@
 'use strict'
-
-import { app, BrowserWindow } from 'electron'
-
+import electron from 'electron'
+const {
+  app,
+  BrowserWindow,
+  Menu
+} = electron
 /**
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
@@ -9,6 +12,39 @@ import { app, BrowserWindow } from 'electron'
 if (process.env.NODE_ENV !== 'development') {
   global.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
 }
+
+let template = [
+  {
+    label: 'File',
+    submenu: [{
+      label: 'Close',
+      click: function (item, focusedWindow) {
+        if (focusedWindow) {
+          // on reload, start fresh and close any old
+          // open secondary windows
+          if (focusedWindow.id === 1) {
+            BrowserWindow.getAllWindows().forEach(function (win) {
+              if (win.id > 1) {
+                win.close()
+              }
+            })
+          }
+          // focusedWindow.reload()
+        }
+      }
+    }]
+  },
+  {
+    label: 'Help',
+    role: 'help',
+    submenu: [{
+      label: 'About PiSugar Power',
+      click: function () {
+        electron.shell.openExternal('https://forum.iptchain.net')
+      }
+    }]
+  }
+]
 
 let mainWindow
 const winURL = process.env.NODE_ENV === 'development'
@@ -24,7 +60,7 @@ function createWindow () {
     width: 900,
     height: 560,
     // frame: false,
-    resizable: false
+    resizable: true
   })
 
   mainWindow.loadURL(winURL)
@@ -32,6 +68,11 @@ function createWindow () {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu) // 设置菜单部分
+
+  console.log('set menu')
 }
 
 app.on('ready', createWindow)

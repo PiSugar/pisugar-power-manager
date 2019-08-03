@@ -157,6 +157,7 @@
     width: 900px;
     height: 560px;
     position: fixed;
+    background-color: orange;
   }
   .setting-panel .el-date-editor.el-input, .el-date-editor.el-input__inner{
     width: 160px;

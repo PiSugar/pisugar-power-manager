@@ -1,8 +1,0 @@
-<RCC>
-  <qresource prefix="image/">
-    <file>green.jpg</file>
-    <file>red.jpg</file>
-    <file>yellow.jpg</file>
-    <file>background.jpg</file>
-  </qresource>
-</RCC>
