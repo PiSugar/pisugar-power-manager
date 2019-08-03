@@ -4,9 +4,6 @@
 import time
 import threading
 from smbus2 import SMBusWrapper
-import socket
-import sys
-import os
 
 
 class PiSugarCore:
@@ -31,9 +28,6 @@ class PiSugarCore:
     RTC_TIME = None
     RTC_TIME_LIST = None
 
-    SERVER_ADDRESS = '/tmp/pisugar.sock'
-    SERVER_ADDRESS_UI = '/tmp/pisugar_ui.sock'
-
     AUTO_WAKE_TYPE = 0
     AUTO_WAKE_TIME = time.time()
     AUTO_WAKE_REPEAT = 0b0000000
@@ -47,11 +41,14 @@ class PiSugarCore:
 
     AUTO_SHUTDOWN_PERCENT = -1
 
-    def __init__(self):
+    def __init__(self, local=False):
 
         print("Initialing PiSugar Core ...")
-        self.start_socket_server()
-        self.start_socket_server4ui()
+        if local:
+            from PiSugarServer import PiSugarServer
+        else:
+            from core.PiSugarServer import PiSugarServer
+        socket_sever = PiSugarServer(core=self)
         try:
             self.clean_clock_flag()
             self.battery_shutdown_threshold_set()
@@ -60,10 +57,10 @@ class PiSugarCore:
             self.gpio_loop()
             self.charge_check_loop()
             self.battery_gpio_set()
+            self.IS_RTC_ALIVE = True
+            self.IS_BAT_ALIVE = True
         except OSError as e:
             print(e)
-        IS_RTC_ALIVE = True
-        IS_BAT_ALIVE = True
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -102,7 +99,6 @@ class PiSugarCore:
         ttime = PiSugarCore.__bcd2time(bcd)
         return ttime
 
-    # BCD转换为time模组
     @staticmethod
     def __bcd2time(bcd):
 
@@ -119,7 +115,6 @@ class PiSugarCore:
         # print(BCDtime)
         return bcd_time
 
-    # 时间戳转换为寄存器BCD码（24小时制）
     @staticmethod
     def __time2bcd(local_time):
         bcd = [
@@ -133,7 +128,6 @@ class PiSugarCore:
         ]
         return bcd
 
-    # 关闭写保护
     def __disable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
@@ -144,7 +138,6 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR1, ct)
         return
 
-    # 打开写保护
     def __enable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -323,7 +316,6 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
-    # set PMIC GPIO
     def battery_gpio_set(self):
         with SMBusWrapper(1) as bus:
             # 将VSET更改为内部设置
@@ -343,7 +335,6 @@ class PiSugarCore:
             t = t & 0b11111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
 
-    # 读取电源芯片GPIO
     def read_battery_gpio(self):
         with SMBusWrapper(1) as bus:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
@@ -438,132 +429,10 @@ class PiSugarCore:
             current_time[2] = current_time[2] + 1
         self.clock_time_set(current_time, 0b0111111)
 
-    def socket_server(self):
-        try:
-            os.unlink(self.SERVER_ADDRESS)
-        except OSError:
-            if os.path.exists(self.SERVER_ADDRESS):
-                raise
-        # Create a UDS socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-        # Bind the socket to the port
-        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS)
-        sock.bind(self.SERVER_ADDRESS)
-
-        # Listen for incoming connections
-        sock.listen(1)
-
-        while True:
-            # Wait for a connection
-            connection, client_address = sock.accept()
-            try:
-                while True:
-                    data = connection.recv(64)
-                    if data:
-                        # print(sys.stderr, 'sending data back to the client')
-                        response = self.socket_handler(data)
-                        connection.sendall(response)
-                        connection.close()
-                        break
-                    else:
-                        print(sys.stderr, 'no more data from', client_address)
-                        connection.close()
-                        break
-            finally:
-                # Clean up the connection
-                connection.close()
-
-    def socket_server4ui(self):
-        try:
-            os.unlink(self.SERVER_ADDRESS_UI)
-        except OSError:
-            if os.path.exists(self.SERVER_ADDRESS_UI):
-                raise
-        # Create a UDS socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-        # Bind the socket to the port
-        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS_UI)
-        sock.bind(self.SERVER_ADDRESS_UI)
-
-        # Listen for incoming connections
-        sock.listen(1)
-
-        while True:
-            # Wait for a connection
-            connection, client_address = sock.accept()
-            try:
-                while True:
-                    data = connection.recv(64)
-                    if data:
-                        print("handle data")
-                        response = self.socket_handler(data)
-                        connection.sendall(response)
-                    else:
-                        print(sys.stderr, 'no more data from', client_address)
-            except Exception as e:
-                print(e)
-
-    def socket_handler(self, data):
-        req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
-        req_arr = req_str.split(" ")
-        res_str = ""
-        try:
-            if req_arr[0] == "get":
-                if req_arr[1] == "model":
-                    res_str = req_arr[1] + ": " + self.get_model()
-                if req_arr[1] == "battery":
-                    res_str = req_arr[1] + ": " + str(self.BATTERY_LEVEL)
-                if req_arr[1] == "battery_v":
-                    res_str = req_arr[1] + ": " + str(self.BATTERY_V)
-                if req_arr[1] == "battery_i":
-                    res_str = req_arr[1] + ": " + str(self.BATTERY_I)
-                if req_arr[1] == "battery_charging":
-                    res_str = req_arr[1] + ": " + str(self.IS_CHARGING)
-                if req_arr[1] == "rtc_time":
-                    res_str = req_arr[1] + ": " + time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
-                if req_arr[1] == "rtc_time_list":
-                    print(self.RTC_TIME_LIST)
-                    res_str = req_arr[1] + ": " + str(self.RTC_TIME_LIST)
-                if req_arr[1] == "rtc_clock_flag":
-                    res_str = req_arr[1] + ": " + str(self.read_clock_flag())
-            if req_arr[0] == "rtc_clean_flag":
-                self.clean_clock_flag()
-                res_str = req_arr[0] + ": done"
-            if req_arr[0] == "rtc_pi2rtc":
-                self.sync_time_pi2rtc()
-                res_str = req_arr[0] + ": done"
-            if req_arr[0] == "rtc_clock_set":
-                argv1 = req_arr[1]
-                argv2 = req_arr[2]
-                try:
-                    time_arr = list(map(int, argv1.split(",")))
-                    week_repeat = int(argv2, 2)
-                    self.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
-                    self.clean_clock_flag()
-                    res_str = req_arr[0] + ": done"
-                except Exception as e:
-                    print(e)
-                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
-            if req_arr[0] == "rtc_test_wake":
-                self.set_test_wake()
-                res_str = "wakeup after 1 min 30 sec"
-        except Exception as e:
-            print(e)
-            return bytes('Invalid arguments.' + "\n", encoding='utf-8')
-        return bytes(res_str + "\n", encoding='utf-8')
-
-    def start_socket_server(self):
-        threading.Thread(name="server_thread", target=self.socket_server).start()
-
-    def start_socket_server4ui(self):
-        threading.Thread(name="server_thread", target=self.socket_server4ui).start()
-
 
 if __name__ == "__main__":
 
-    core = PiSugarCore()
+    core = PiSugarCore(local=True)
 
     # core.battery_GPIO_set()
     # wake up after 1 min 30 sec
