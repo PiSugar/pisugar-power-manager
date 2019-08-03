@@ -18,7 +18,7 @@ class PiSugarServer:
         self.CORE = core
         threading.Thread(name="server_thread", target=self.socket_server).start()
         threading.Thread(name="server_thread_ui", target=self.socket_server4ui).start()
-        self.create_http_server()
+        # self.create_http_server()
 
     def socket_server(self):
         try:
