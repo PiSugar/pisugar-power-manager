@@ -99,11 +99,13 @@
 </template>
 
 <script>
+  import net from 'net'
   export default {
     name: 'index-page',
     components: { },
     data () {
       return {
+        socketClient: null,
         alarmOption: [
           { label: 'Disabled', value: 0 },
           { label: 'TimeSet', value: 1 },
@@ -139,7 +141,36 @@
         ]
       }
     },
+    mounted () {
+      this.createSocketClient()
+    },
     methods: {
+      createSocketClient () {
+        const that = this
+        this.socketClient = net.createConnection('/tmp/pisugar_ui.sock')
+          .on('connect', () => {
+            console.log('Connected.')
+            // that.socketClient.write('get battery')
+            that.socketClient.write('get battery_i')
+            that.socketClient.write('get battery_v')
+          })
+          .on('data', function (data) {
+            data = data.toString()
+            if (data === '__boop') {
+              console.info('Server sent boop. Confirming our snoot is booped.')
+              that.socketClient.write('__snootbooped')
+              return
+            }
+            if (data === '__disconnect') {
+              console.log('Server disconnected.')
+            }
+            // Generic message handler
+            console.info('Server:', data)
+          })
+          .on('error', function (data) {
+            console.error('Server not active.')
+          })
+      }
     }
   }
 </script>

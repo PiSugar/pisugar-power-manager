@@ -51,6 +51,7 @@ class PiSugarCore:
 
         print("Initialing PiSugar Core ...")
         self.start_socket_server()
+        self.start_socket_server4ui()
         try:
             self.clean_clock_flag()
             self.battery_shutdown_threshold_set()
@@ -496,16 +497,13 @@ class PiSugarCore:
                 while True:
                     data = connection.recv(64)
                     if data:
-                        # print(sys.stderr, 'sending data back to the client')
+                        print("handle data")
                         response = self.socket_handler(data)
                         connection.sendall(response)
-                        break
                     else:
                         print(sys.stderr, 'no more data from', client_address)
-                        break
-            finally:
-                # Clean up the connection
-                connection.close()
+            except Exception as e:
+                print(e)
 
     def socket_handler(self, data):
         req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
@@ -514,28 +512,28 @@ class PiSugarCore:
         try:
             if req_arr[0] == "get":
                 if req_arr[1] == "model":
-                    res_str = self.get_model()
+                    res_str = req_arr[1] + ": " + self.get_model()
                 if req_arr[1] == "battery":
-                    res_str = str(self.BATTERY_LEVEL)
+                    res_str = req_arr[1] + ": " + str(self.BATTERY_LEVEL)
                 if req_arr[1] == "battery_v":
-                    res_str = str(self.BATTERY_V)
+                    res_str = req_arr[1] + ": " + str(self.BATTERY_V)
                 if req_arr[1] == "battery_i":
-                    res_str = str(self.BATTERY_I)
+                    res_str = req_arr[1] + ": " + str(self.BATTERY_I)
                 if req_arr[1] == "battery_charging":
-                    res_str = str(self.IS_CHARGING)
+                    res_str = req_arr[1] + ": " + str(self.IS_CHARGING)
                 if req_arr[1] == "rtc_time":
-                    res_str = time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
+                    res_str = req_arr[1] + ": " + time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
                 if req_arr[1] == "rtc_time_list":
                     print(self.RTC_TIME_LIST)
-                    res_str = str(self.RTC_TIME_LIST)
+                    res_str = req_arr[1] + ": " + str(self.RTC_TIME_LIST)
                 if req_arr[1] == "rtc_clock_flag":
-                    res_str = str(self.read_clock_flag())
+                    res_str = req_arr[1] + ": " + str(self.read_clock_flag())
             if req_arr[0] == "rtc_clean_flag":
                 self.clean_clock_flag()
-                res_str = "done"
+                res_str = req_arr[0] + ": done"
             if req_arr[0] == "rtc_pi2rtc":
                 self.sync_time_pi2rtc()
-                res_str = "done"
+                res_str = req_arr[0] + ": done"
             if req_arr[0] == "rtc_clock_set":
                 argv1 = req_arr[1]
                 argv2 = req_arr[2]
@@ -544,7 +542,7 @@ class PiSugarCore:
                     week_repeat = int(argv2, 2)
                     self.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
                     self.clean_clock_flag()
-                    res_str = "done"
+                    res_str = req_arr[0] + ": done"
                 except Exception as e:
                     print(e)
                     return bytes('Invalid arguments.' + "\n", encoding='utf-8')
