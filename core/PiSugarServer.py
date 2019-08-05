@@ -3,35 +3,33 @@ import sys
 import os
 import time
 import threading
-import http.server
-import socketserver
+import asyncio
+import websockets
 
 
 class PiSugarServer:
 
     SERVER_ADDRESS = '/tmp/pisugar.sock'
-    SERVER_ADDRESS_UI = '/tmp/pisugar_ui.sock'
-
+    WEBSOCKET_PORT = 3001
     CORE = None
 
     def __init__(self, core):
         self.CORE = core
-        threading.Thread(name="server_thread", target=self.socket_server).start()
-        threading.Thread(name="server_thread_ui", target=self.socket_server4ui).start()
-        # self.create_http_server()
+        self.create_ws_server()
+        threading.Thread(name="server_thread_shell", target=self.socket_server, args=(self.SERVER_ADDRESS, True)).start()
 
-    def socket_server(self):
+    def socket_server(self, server_address, once):
         try:
-            os.unlink(self.SERVER_ADDRESS)
+            os.unlink(server_address)
         except OSError:
-            if os.path.exists(self.SERVER_ADDRESS):
+            if os.path.exists(server_address):
                 raise
         # Create a UDS socket
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS)
-        sock.bind(self.SERVER_ADDRESS)
+        print(sys.stderr, 'starting up on %s' % server_address)
+        sock.bind(server_address)
 
         # Listen for incoming connections
         sock.listen(1)
@@ -46,48 +44,23 @@ class PiSugarServer:
                         # print(sys.stderr, 'sending data back to the client')
                         response = self.socket_handler(data)
                         connection.sendall(response)
-                        connection.close()
                         break
                     else:
                         print(sys.stderr, 'no more data from', client_address)
-                        connection.close()
                         break
+                if once:
+                    connection.close()
             finally:
                 # Clean up the connection
-                connection.close()
+                if once:
+                    connection.close()
 
-    def socket_server4ui(self):
-        try:
-            os.unlink(self.SERVER_ADDRESS_UI)
-        except OSError:
-            if os.path.exists(self.SERVER_ADDRESS_UI):
-                raise
-        # Create a UDS socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-        # Bind the socket to the port
-        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS_UI)
-        sock.bind(self.SERVER_ADDRESS_UI)
-
-        # Listen for incoming connections
-        sock.listen(1)
-
-        while True:
-            # Wait for a connection
-            connection, client_address = sock.accept()
-            try:
-                while True:
-                    data = connection.recv(64)
-                    if data:
-                        response = self.socket_handler(data)
-                        connection.sendall(response)
-                    else:
-                        print(sys.stderr, 'no more data from', client_address)
-            except Exception as e:
-                print(e)
-
-    def socket_handler(self, data):
-        req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
+    def socket_handler(self, data, is_string=False):
+        if is_string:
+            req_str = data.replace("\n", "")
+        else:
+            req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
+        print(req_str)
         req_arr = req_str.split(" ")
         res_str = ""
         try:
@@ -138,10 +111,14 @@ class PiSugarServer:
             return bytes('Invalid arguments.' + "\n", encoding='utf-8')
         return bytes(res_str + "\n", encoding='utf-8')
 
-    def create_http_server(self):
-        PORT = 8080
-        Handler = http.server.SimpleHTTPRequestHandler
+    def create_ws_server(self):
+        print("Start websocket server on port %d..." % self.WEBSOCKET_PORT)
+        start_server = websockets.serve(self.ws_handler, "0.0.0.0", self.WEBSOCKET_PORT)
+        asyncio.get_event_loop().run_until_complete(start_server)
+        threading.Thread(name="server_thread_ws", target=asyncio.get_event_loop().run_forever).start()
 
-        with socketserver.TCPServer(("", PORT), Handler) as httpd:
-            print("serving at port", PORT)
-            httpd.serve_forever()
+    async def ws_handler(self, websocket, path):
+        while True:
+            data = await websocket.recv()
+            response = self.socket_handler(data, is_string=True)
+            await websocket.send(response)

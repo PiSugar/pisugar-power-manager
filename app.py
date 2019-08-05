@@ -91,7 +91,6 @@ if __name__ == "__main__":
     # initial core
     core = PiSugarCore()
 
-    # create the main window
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("fusion")

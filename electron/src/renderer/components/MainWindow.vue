@@ -99,13 +99,14 @@
 </template>
 
 <script>
-  import net from 'net'
+  import Ws from 'ws'
   export default {
     name: 'index-page',
     components: { },
     data () {
       return {
         socketClient: null,
+        webSocketClient: null,
         alarmOption: [
           { label: 'Disabled', value: 0 },
           { label: 'TimeSet', value: 1 },
@@ -142,34 +143,24 @@
       }
     },
     mounted () {
-      this.createSocketClient()
+      this.createWebSocketClient()
     },
     methods: {
-      createSocketClient () {
+      createWebSocketClient () {
         const that = this
-        this.socketClient = net.createConnection('/tmp/pisugar_ui.sock')
-          .on('connect', () => {
-            console.log('Connected.')
-            // that.socketClient.write('get battery')
-            that.socketClient.write('get battery_i')
-            that.socketClient.write('get battery_v')
-          })
-          .on('data', function (data) {
-            data = data.toString()
-            if (data === '__boop') {
-              console.info('Server sent boop. Confirming our snoot is booped.')
-              that.socketClient.write('__snootbooped')
-              return
-            }
-            if (data === '__disconnect') {
-              console.log('Server disconnected.')
-            }
-            // Generic message handler
-            console.info('Server:', data)
-          })
-          .on('error', function (data) {
-            console.error('Server not active.')
-          })
+        this.webSocketClient = new Ws('ws://localhost:3001')
+        this.webSocketClient.on('open', function () {
+          console.log(`[Websocket CLIENT] open()`)
+          that.webSocketClient.send('get battery')
+          that.webSocketClient.send('get battery_i')
+          that.webSocketClient.send('get battery_v')
+          setTimeout(() => {
+            that.webSocketClient.send('get battery')
+          }, 1000)
+        })
+        this.webSocketClient.on('message', function (message) {
+          console.log(`[Websocket CLIENT] Received: ${message}`)
+        })
       }
     }
   }

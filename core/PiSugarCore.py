@@ -48,7 +48,7 @@ class PiSugarCore:
             from PiSugarServer import PiSugarServer
         else:
             from core.PiSugarServer import PiSugarServer
-        socket_sever = PiSugarServer(core=self)
+        PiSugarServer(core=self)
         try:
             self.clean_clock_flag()
             self.battery_shutdown_threshold_set()
