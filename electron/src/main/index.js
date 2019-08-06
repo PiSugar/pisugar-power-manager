@@ -3,8 +3,10 @@ import electron from 'electron'
 const {
   app,
   BrowserWindow,
-  Menu
+  Menu,
+  ipcMain
 } = electron
+
 /**
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
@@ -60,10 +62,15 @@ function createWindow () {
     width: 900,
     height: 560,
     // frame: false,
-    resizable: true
+    resizable: true,
+    webPreferences: { webSecurity: false }
   })
 
   mainWindow.loadURL(winURL)
+  ipcMain.on('f12', () => {
+    // console.log('f12')
+    mainWindow.webContents.openDevTools()
+  })
 
   mainWindow.on('closed', () => {
     mainWindow = null

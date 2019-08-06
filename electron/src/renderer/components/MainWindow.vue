@@ -8,7 +8,7 @@
       <div class="battery-shape">
         <div class="battery-content"></div>
       </div>
-      <div class="battery-level">86%</div>
+      <div class="battery-level">{{batteryPercent}}%</div>
       <div class="battery-model">PiSugar 2 Pro</div>
       <img class="logo" src="~@/assets/logo.svg" alt="">
     </div>
@@ -99,14 +99,12 @@
 </template>
 
 <script>
-  import Ws from 'ws'
   export default {
     name: 'index-page',
     components: { },
     data () {
       return {
-        socketClient: null,
-        webSocketClient: null,
+        batteryPercent: 100,
         alarmOption: [
           { label: 'Disabled', value: 0 },
           { label: 'TimeSet', value: 1 },
@@ -148,18 +146,32 @@
     methods: {
       createWebSocketClient () {
         const that = this
-        this.webSocketClient = new Ws('ws://localhost:3001')
-        this.webSocketClient.on('open', function () {
+        console.log(this.$socket)
+        this.$socket.onopen = function () {
           console.log(`[Websocket CLIENT] open()`)
-          that.webSocketClient.send('get battery')
-          that.webSocketClient.send('get battery_i')
-          that.webSocketClient.send('get battery_v')
+          that.$socket.send('get battery')
+          that.$socket.send('get battery_i')
+          that.$socket.send('get battery_v')
           setTimeout(() => {
-            that.webSocketClient.send('get battery')
+            that.$socket.send('get battery')
           }, 1000)
-        })
-        this.webSocketClient.on('message', function (message) {
-          console.log(`[Websocket CLIENT] Received: ${message}`)
+        }
+        this.$socket.onmessage = async function (e) {
+          console.log(e)
+          let message = await that.blob2String(e.data)
+          if (message.indexOf('battery: ') === 0) {
+            that.batteryPercent = parseInt(message.replace('battery: ', ''))
+          }
+        }
+      },
+      blob2String (blob) {
+        return new Promise((resolve, reject) => {
+          let reader = new FileReader()
+          reader.onload = function(event){
+            let content = reader.result
+            resolve(content)
+          }
+          reader.readAsText(blob)
         })
       }
     }

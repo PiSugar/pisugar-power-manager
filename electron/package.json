@@ -6,7 +6,8 @@
   "license": null,
   "main": "./dist/electron/main.js",
   "scripts": {
-    "build": "node .electron-vue/build.js && electron-builder",
+    "build": "node .electron-vue/build.js && electron-packager ./ --platform=linux --arch=armv7l --overwrite",
+    "build:bybuilder": "node .electron-vue/build.js && electron-builder --armv7l",
     "build:dir": "node .electron-vue/build.js && electron-builder --dir",
     "build:clean": "cross-env BUILD_TARGET=clean node .electron-vue/build.js",
     "build:web": "cross-env BUILD_TARGET=web node .electron-vue/build.js",
@@ -55,10 +56,12 @@
   "dependencies": {
     "axios": "^0.18.0",
     "element-ui": "^2.11.1",
+    "eslint-plugin-vue": "^5.2.3",
     "less": "^3.9.0",
     "less-loader": "^5.0.0",
     "vue": "^2.5.16",
     "vue-electron": "^1.0.6",
+    "vue-native-websocket": "^2.0.13",
     "vue-router": "^3.0.1",
     "vuex": "^3.0.1",
     "vuex-electron": "^1.0.0"
@@ -82,7 +85,7 @@
     "electron": "^2.0.4",
     "electron-debug": "^1.5.0",
     "electron-devtools-installer": "^2.2.4",
-    "electron-builder": "^20.19.2",
+    "electron-builder": "^20.44.4",
     "babel-eslint": "^8.2.3",
     "eslint": "^4.19.1",
     "eslint-friendly-formatter": "^4.0.1",
