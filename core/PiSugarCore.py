@@ -43,6 +43,9 @@ class PiSugarCore:
 
     def __init__(self, local=False):
 
+        # first time initial rtc
+        # self.sync_time_pi2rtc()
+
         print("Initialing PiSugar Core ...")
         if local:
             from PiSugarServer import PiSugarServer
@@ -103,6 +106,7 @@ class PiSugarCore:
     def __bcd2time(bcd):
 
         # time模组处理str的时候，周数会自动减一。例如，数字3代表周三，但是time模组以周日为第一天，读取以后会自动减一。SD3078也是周日为第一天，此处手动加1解决匹配的问题
+        print(bcd)
         bcd[3] = (bcd[3] - 1) % 7
 
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19

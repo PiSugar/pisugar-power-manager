@@ -60,7 +60,7 @@ class PiSugarServer:
             req_str = data.replace("\n", "")
         else:
             req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
-        print(req_str)
+        # print(req_str)
         req_arr = req_str.split(" ")
         res_str = ""
         try:

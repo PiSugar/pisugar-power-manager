@@ -1,7 +1,7 @@
 <template>
   <div id="wrapper">
     <div class="battery-info">
-      <div class="charge-tag">
+      <div :class="{'show': batteryCharging}" class="charge-tag">
         <img class="flash" src="~@/assets/flash.svg" alt="">
         <p>Charging</p>
       </div>
@@ -101,10 +101,12 @@
 <script>
   export default {
     name: 'index-page',
+    debug: true,
     components: { },
     data () {
       return {
-        batteryPercent: 100,
+        batteryPercent: '...',
+        batteryCharging: false,
         alarmOption: [
           { label: 'Disabled', value: 0 },
           { label: 'TimeSet', value: 1 },
@@ -149,19 +151,31 @@
         console.log(this.$socket)
         this.$socket.onopen = function () {
           console.log(`[Websocket CLIENT] open()`)
-          that.$socket.send('get battery')
-          that.$socket.send('get battery_i')
-          that.$socket.send('get battery_v')
-          setTimeout(() => {
-            that.$socket.send('get battery')
-          }, 1000)
+          that.getBatteryInfo(true)
         }
         this.$socket.onmessage = async function (e) {
-          console.log(e)
           let message = await that.blob2String(e.data)
-          if (message.indexOf('battery: ') === 0) {
+          console.log(message)
+          if (message.indexOf('battery:') > -1) {
             that.batteryPercent = parseInt(message.replace('battery: ', ''))
           }
+          if (message.indexOf('battery_charging:') > -1) {
+            that.batteryCharging = message.indexOf('True') > 0
+          }
+        }
+      },
+      getBatteryInfo (loop) {
+        const that = this
+        if (this.$socket.readyState === 1) {
+          this.$socket.send('get battery')
+          this.$socket.send('get battery_i')
+          this.$socket.send('get battery_v')
+          this.$socket.send('get battery_charging')
+        }
+        if (loop) {
+          setTimeout(() => {
+            that.getBatteryInfo(true)
+          }, 3000)
         }
       },
       blob2String (blob) {
