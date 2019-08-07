@@ -6,7 +6,7 @@ Install
 ```
 apt-get update
 apt-get install python3-pyqt5 pyqt5-dev-tools
-pip3 install smbus
+pip3 install smbus websockets
 
 ```
 
