@@ -36,7 +36,7 @@
         <el-button v-if="alarmOptionValue === 1" :disabled="!socketConnect">Repeat</el-button>
       </el-row>
       <el-row>
-        <p class="desc">Schedule wake up off</p>
+        <p class="desc">{{alarmMessage}}</p>
       </el-row>
       <div class="title">Custom Button Function</div>
       <el-row>
@@ -123,7 +123,7 @@
         ],
         alarmOptionValue: 0,
         timeEditValue: new Date(2019, 8, 1, 18, 40, 30),
-        timeRepeat: parseInt(1111111, 2),
+        timeRepeat: parseInt(0, 2),
         singleTrigger: true,
         doubleTrigger: true,
         longTrigger: true,
@@ -167,6 +167,37 @@
         if (this.batteryPercent < 10) return 'red'
         if (this.batteryPercent < 30) return 'yellow'
         return 'green'
+      },
+      alarmMessage () {
+        if (this.alarmOptionValue === 1) {
+          let sec = this.timeEditValue.getSeconds()
+          let min = this.timeEditValue.getMinutes()
+          let hour = this.timeEditValue.getHours()
+          let repeatString = this.timeRepeat.toString(2)
+          repeatString = '0000000'.substring(0, 7 - repeatString.length) + repeatString
+          let repeatMessage = ''
+          if (repeatString == '0000000') {
+            console.log('no repeat.')
+            repeatMessage = 'no repeat.'
+          } else if (repeatString == '1111111') {
+            console.log('repeat everyday.')
+            repeatMessage = 'repeat everyday.'
+          } else{
+            console.log('repeat some.')
+            let repeatArray = []
+            repeatString.split('').map((item, index)=> {
+              item = parseInt(item)
+              let days = ['Sun', 'Sat', 'Fri', 'Thu', 'Wed', 'Tue', 'Mon']
+              if (item) {
+                repeatArray.push(days[index])
+              }
+            })
+            repeatMessage = `repeat on ${repeatArray.join(', ')}.`
+          }
+          return `Schedule wake up at ${hour}:${min}:${sec}, ${repeatMessage}`
+        } else {
+          return 'Schedule wake up off.'
+        }
       }
     },
     methods: {
@@ -265,11 +296,18 @@
           that.timeUpdater()
         }, 1000)
       },
-      timeEditChange (time) {
-        let sec = time.getSeconds()
-        let min = time.getMinutes()
-        let hour = time.getHours()
+      timeEditChange () {
+        let sec = this.timeEditValue.getSeconds()
+        let min = this.timeEditValue.getMinutes()
+        let hour = this.timeEditValue.getHours()
         this.$socket.send(`rtc_clock_set ${sec},${min},${hour},0,0,0,0 0b${this.timeRepeat.toString(2)}`)
+      }
+    },
+    watch: {
+      alarmOptionValue (val, oldVal) {
+        if (val) {
+          this.timeEditChange()
+        }
       }
     }
   }
