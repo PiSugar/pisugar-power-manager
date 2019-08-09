@@ -15,7 +15,7 @@
     <div class="setting-panel">
       <div class="title">Schedule Wake Up</div>
       <el-row>
-        <el-select v-model="alarmOptionValue" placeholder="请选择" :disabled="!socketConnect">
+        <el-select v-model="alarmOptionValue" placeholder="Select" :disabled="!socketConnect">
           <el-option
                   v-for="item in alarmOption"
                   :key="item.value"
@@ -31,9 +31,9 @@
                   selectableRange: '00:00:00 - 23:59:59'
                 }"
                 @change="timeEditChange"
-                placeholder="任意时间点">
+                placeholder="select anytime">
         </el-time-picker>
-        <el-button v-if="alarmOptionValue === 1" :disabled="!socketConnect">Repeat</el-button>
+        <el-button v-if="alarmOptionValue === 1" :disabled="!socketConnect" @click="repeatDialog = true">Repeat</el-button>
       </el-row>
       <el-row>
         <p class="desc">{{alarmMessage}}</p>
@@ -42,7 +42,7 @@
       <el-row>
         <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
           <el-form-item label="Single Tap">
-            <el-select v-model="buttonFuncForm.single" placeholder="请选择活动区域">
+            <el-select v-model="buttonFuncForm.single" placeholder="Select">
               <el-option
                       v-for="item in buttonFuncForm.singleOpts"
                       :key="item.value"
@@ -58,7 +58,7 @@
       <el-row>
         <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
           <el-form-item label="Double Tap">
-            <el-select v-model="buttonFuncForm.double" placeholder="请选择活动区域">
+            <el-select v-model="buttonFuncForm.double" placeholder="Select">
               <el-option
                       v-for="item in buttonFuncForm.doubleOpts"
                       :key="item.value"
@@ -74,7 +74,7 @@
       <el-row>
         <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
           <el-form-item label="Long Tap">
-            <el-select v-model="buttonFuncForm.long" placeholder="请选择活动区域">
+            <el-select v-model="buttonFuncForm.long" placeholder="Select">
               <el-option
                       v-for="item in buttonFuncForm.longOpts"
                       :key="item.value"
@@ -100,6 +100,23 @@
       </el-row>
       <div class="sys-info">RTC Time : {{rtcTime}}</div>
     </div>
+    <el-dialog title="Repeat" :visible.sync="repeatDialog">
+      <el-row>
+        <el-checkbox v-model="checkRepeatAll" @change="checkRepeatAllChange">Everyday</el-checkbox>
+      </el-row>
+      <el-checkbox-group v-model="checkRepeat" @change="checkRepeatChange">
+        <el-row>
+          <el-checkbox label="Monday"></el-checkbox>
+          <el-checkbox label="Tuesday"></el-checkbox>
+          <el-checkbox label="Wednesday"></el-checkbox>
+          <el-checkbox label="Thursday"></el-checkbox>
+          <el-checkbox label="Friday"></el-checkbox>
+          <el-checkbox label="Saturday"></el-checkbox>
+          <el-checkbox label="Sunday"></el-checkbox>
+        </el-row>
+      </el-checkbox-group>
+      <br>
+    </el-dialog>
   </div>
 </template>
 
@@ -124,6 +141,9 @@
         alarmOptionValue: 0,
         timeEditValue: new Date(2019, 8, 1, 18, 40, 30),
         timeRepeat: parseInt(0, 2),
+        checkRepeat: [],
+        checkRepeatAll: false,
+        repeatDialog: false,
         singleTrigger: true,
         doubleTrigger: true,
         longTrigger: true,
@@ -177,13 +197,10 @@
           repeatString = '0000000'.substring(0, 7 - repeatString.length) + repeatString
           let repeatMessage = ''
           if (repeatString == '0000000') {
-            console.log('no repeat.')
             repeatMessage = 'no repeat.'
           } else if (repeatString == '1111111') {
-            console.log('repeat everyday.')
             repeatMessage = 'repeat everyday.'
           } else{
-            console.log('repeat some.')
             let repeatArray = []
             repeatString.split('').map((item, index)=> {
               item = parseInt(item)
@@ -301,6 +318,25 @@
         let min = this.timeEditValue.getMinutes()
         let hour = this.timeEditValue.getHours()
         this.$socket.send(`rtc_clock_set ${sec},${min},${hour},0,0,0,0 0b${this.timeRepeat.toString(2)}`)
+      },
+      checkRepeatAllChange (value) {
+        if (value) {
+          this.checkRepeat = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday']
+          this.checkRepeatChange()
+        }
+      },
+      checkRepeatChange () {
+        let weekdays = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday']
+        let weekdayArray = '0000000'.split('').map(i => parseInt(i))
+        weekdays.map((item, index) => {
+          if (this.checkRepeat.indexOf(item) > -1) weekdayArray[index] = 1
+        })
+        if (weekdayArray.join('') === '1111111') {
+          this.checkRepeatAll = true
+        } else {
+          this.checkRepeatAll = false
+        }
+        this.timeRepeat = parseInt(weekdayArray.join(''), 2)
       }
     },
     watch: {
@@ -357,6 +393,9 @@
   .tag-span .el-tag.el-tag--success{
     display: inline-block;
     animation: show-once 2s ease-in-out forwards;
+  }
+  .el-checkbox{
+    width: 100px;
   }
 </style>
 
@@ -492,6 +531,7 @@
     }
     .desc{
       color: #a2a6b8;
+      font-size: 12px;
     }
   }
   .sys-info{
