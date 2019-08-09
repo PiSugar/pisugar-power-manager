@@ -22,27 +22,39 @@ let template = [
       label: 'Close',
       click: function (item, focusedWindow) {
         if (focusedWindow) {
-          // on reload, start fresh and close any old
-          // open secondary windows
-          if (focusedWindow.id === 1) {
-            BrowserWindow.getAllWindows().forEach(function (win) {
-              if (win.id > 1) {
-                win.close()
-              }
-            })
-          }
-          // focusedWindow.reload()
+          BrowserWindow.getAllWindows().forEach(function (win) {
+              win.close()
+          })
         }
       }
+    }]
+  },
+  {
+    label: 'Time',
+    submenu: [{
+      label: 'Sync Time Pi => RTC',
+      click: function () {
+        console.log('Sync Time Pi => RTC')
+      },
+    },{
+      label: 'Sync Time RTC => Pi',
+      click: function () {
+        console.log('Sync Time RTC => Pi')
+      },
+    },{
+      label: 'Sync Time Internet => Pi & RTC',
+      click: function () {
+        console.log('Sync Time Internet => Pi & RTC')
+      },
     }]
   },
   {
     label: 'Help',
     role: 'help',
     submenu: [{
-      label: 'About PiSugar Power',
+      label: 'About PiSugar Power Manager v1.0',
       click: function () {
-        electron.shell.openExternal('https://forum.iptchain.net')
+        electron.shell.openExternal('https://www.pisugar.com')
       }
     }]
   }
@@ -68,7 +80,6 @@ function createWindow () {
 
   mainWindow.loadURL(winURL)
   ipcMain.on('f12', () => {
-    // console.log('f12')
     mainWindow.webContents.openDevTools()
   })
 

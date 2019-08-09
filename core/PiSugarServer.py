@@ -12,6 +12,8 @@ class PiSugarServer:
     SERVER_ADDRESS = '/tmp/pisugar.sock'
     WEBSOCKET_PORT = 3001
     CORE = None
+    WEBSOCKET_LIST = []
+    EVENT_ARRAY = []
 
     def __init__(self, core):
         self.CORE = core
@@ -76,7 +78,7 @@ class PiSugarServer:
                 if req_arr[1] == "battery_charging":
                     res_str = str(self.CORE.IS_CHARGING)
                 if req_arr[1] == "rtc_time":
-                    res_str = time.strftime("%w %b %d %H:%M:%S %Y", self.CORE.RTC_TIME)
+                    res_str = time.strftime("%b %d,%Y %H:%M:%S", self.CORE.RTC_TIME)
                 if req_arr[1] == "rtc_time_list":
                     print(self.CORE.RTC_TIME_LIST)
                     res_str = str(self.CORE.RTC_TIME_LIST)
@@ -118,7 +120,15 @@ class PiSugarServer:
         threading.Thread(name="server_thread_ws", target=asyncio.get_event_loop().run_forever).start()
 
     async def ws_handler(self, websocket, path):
+        self.WEBSOCKET_LIST.append(websocket)
         while True:
             data = await websocket.recv()
             response = self.socket_handler(data, is_string=True)
             await websocket.send(response)
+            for item in self.EVENT_ARRAY:
+                # print("button event:" + item)
+                await websocket.send(bytes("button_event: " + item + "\n", encoding='utf-8'))
+            self.EVENT_ARRAY = []
+
+    def ws_broadcast(self, string):
+        self.EVENT_ARRAY.append(string)

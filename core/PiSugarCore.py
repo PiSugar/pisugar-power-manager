@@ -25,6 +25,7 @@ class PiSugarCore:
 
     UPDATE_INTERVAL = 1
     TIME_UPDATE_INTERVAL = 0.5
+    GPIO_INTERVAL = 0.15
     RTC_TIME = None
     RTC_TIME_LIST = None
 
@@ -32,6 +33,7 @@ class PiSugarCore:
     AUTO_WAKE_TIME = time.time()
     AUTO_WAKE_REPEAT = 0b0000000
 
+    TAP_ARRAY = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     SINGLE_TAP_ENABLE = False
     SINGLE_TAP_SHELL = ""
     DOUBLE_TAP_ENABLE = False
@@ -40,6 +42,8 @@ class PiSugarCore:
     LONG_TAP_SHELL = ""
 
     AUTO_SHUTDOWN_PERCENT = -1
+
+    SERVER = None
 
     def __init__(self, local=False):
 
@@ -51,18 +55,28 @@ class PiSugarCore:
             from PiSugarServer import PiSugarServer
         else:
             from core.PiSugarServer import PiSugarServer
-        PiSugarServer(core=self)
+
+        self.SERVER = PiSugarServer(core=self)
+
         try:
-            self.clean_clock_flag()
             self.battery_shutdown_threshold_set()
             self.battery_loop()
-            self.rtc_loop()
             self.gpio_loop()
             self.charge_check_loop()
             self.battery_gpio_set()
-            self.IS_RTC_ALIVE = True
             self.IS_BAT_ALIVE = True
+            if self.BAT_ADDRESS == 0x75:
+                self.BATTERY_MODEL = "PiSugar 2"
         except OSError as e:
+            print("Battery i2c error...")
+            print(e)
+
+        try:
+            self.clean_clock_flag()
+            self.rtc_loop()
+            self.IS_RTC_ALIVE = True
+        except OSError as e:
+            print("rtc i2c error...")
             print(e)
 
     def get_status(self):
@@ -106,7 +120,7 @@ class PiSugarCore:
     def __bcd2time(bcd):
 
         # time模组处理str的时候，周数会自动减一。例如，数字3代表周三，但是time模组以周日为第一天，读取以后会自动减一。SD3078也是周日为第一天，此处手动加1解决匹配的问题
-        print(bcd)
+        # print(bcd)
         bcd[3] = (bcd[3] - 1) % 7
 
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19
@@ -342,7 +356,35 @@ class PiSugarCore:
     def read_battery_gpio(self):
         with SMBusWrapper(1) as bus:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
+            self.gpio_tap_detect(t)
             return t
+
+    def gpio_tap_detect(self, tap):
+        if tap > 0:
+            tap = 1
+        del self.TAP_ARRAY[0]
+        self.TAP_ARRAY.append(tap)
+        string = "".join([str(x) for x in self.TAP_ARRAY])
+        should_refresh = False
+        if string.find("111111110") >= 0:
+            print("long tap event")
+            self.SERVER.ws_broadcast("long")
+            should_refresh = True
+        if string.find("1010") >= 0 \
+                or string.find("10010") >= 0 \
+                or string.find("10110") >= 0\
+                or string.find("100110") >= 0\
+                or string.find("101110") >= 0\
+                or string.find("1001110") >= 0:
+            print("double tap event")
+            self.SERVER.ws_broadcast("double")
+            should_refresh = True
+        if string.find("1000") >= 0:
+            print("single tap event")
+            self.SERVER.ws_broadcast("single")
+            should_refresh = True
+        if should_refresh:
+            self.TAP_ARRAY = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     def battery_loop(self):
         self.BATTERY_I = self.read_battery_i()
@@ -352,12 +394,18 @@ class PiSugarCore:
         threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
 
     def rtc_loop(self):
-        self.read_time()
+        try:
+            self.read_time()
+        except ValueError as error:
+            print(error)
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
 
     def gpio_loop(self):
-        self.read_battery_gpio()
-        threading.Timer(0.15, self.read_battery_gpio).start()
+        current = self.read_battery_gpio()
+        if current == 0:
+            threading.Timer(self.GPIO_INTERVAL, self.gpio_loop).start()
+        else:
+            threading.Timer(self.GPIO_INTERVAL / 3, self.gpio_loop).start()
 
     def charge_check_loop(self):
         if self.BATTERY_LEVEL == -1:
@@ -374,12 +422,12 @@ class PiSugarCore:
         min_lv = min(self.BATTERY_LEVEL_RECORD)
         min_index = self.BATTERY_LEVEL_RECORD.index(min_lv)
         result = None
-        if max_lv - min_lv > 1:
+        if max_lv - min_lv > 0.8:
             if max_index > min_index:
                 result = True
             else:
                 result = False
-        elif max_lv - min_lv < 0.15:
+        elif max_lv - min_lv < 0.2:
             result = False
         if result is not None:
             self.IS_CHARGING = result
@@ -437,6 +485,7 @@ class PiSugarCore:
 if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
+    # core.sync_time_pi2rtc()
 
     # core.battery_GPIO_set()
     # wake up after 1 min 30 sec
