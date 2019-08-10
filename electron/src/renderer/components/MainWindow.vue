@@ -190,9 +190,6 @@
       },
       alarmMessage () {
         if (this.alarmOptionValue === 1) {
-          let sec = this.timeEditValue.getSeconds()
-          let min = this.timeEditValue.getMinutes()
-          let hour = this.timeEditValue.getHours()
           let repeatString = this.timeRepeat.toString(2)
           repeatString = '0000000'.substring(0, 7 - repeatString.length) + repeatString
           let repeatMessage = ''
@@ -211,7 +208,7 @@
             })
             repeatMessage = `repeat on ${repeatArray.join(', ')}.`
           }
-          return `Schedule wake up at ${hour}:${min}:${sec}, ${repeatMessage}`
+          return `Schedule wake up at ${this.timeEditValue.toTimeString().split(' ')[0]}, ${repeatMessage}`
         } else {
           return 'Schedule wake up off.'
         }

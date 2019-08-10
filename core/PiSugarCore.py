@@ -3,6 +3,8 @@
 
 import time
 import threading
+import json
+import os
 from smbus2 import SMBusWrapper
 
 
@@ -44,6 +46,7 @@ class PiSugarCore:
     AUTO_SHUTDOWN_PERCENT = -1
 
     SERVER = None
+    JSON_PATH = "pisugar.json"
 
     def __init__(self, local=False):
 
@@ -57,7 +60,7 @@ class PiSugarCore:
             from core.PiSugarServer import PiSugarServer
 
         self.SERVER = PiSugarServer(core=self)
-
+        self.loadData()
         try:
             self.battery_shutdown_threshold_set()
             self.battery_loop()
@@ -78,6 +81,7 @@ class PiSugarCore:
         except OSError as e:
             print("rtc i2c error...")
             print(e)
+        self.dumpData()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -480,6 +484,45 @@ class PiSugarCore:
             current_time[1] = current_time[1] - 60
             current_time[2] = current_time[2] + 1
         self.clock_time_set(current_time, 0b0111111)
+
+    def dumpData(self):
+        # if os.path.exists(self.JSON_PATH):
+        data_to_save = {
+            'autoWakeType': self.AUTO_WAKE_TYPE,
+            'autoWakeTime': self.AUTO_WAKE_TIME,
+            'autoWakeRepeat': self.AUTO_WAKE_REPEAT,
+            'singleTapEnable': self.SINGLE_TAP_ENABLE,
+            'singleTapShell': self.SINGLE_TAP_SHELL,
+            'doubleTapEnable': self.DOUBLE_TAP_ENABLE,
+            'doubleTapShell': self.DOUBLE_TAP_SHELL,
+            'longTapEnable': self.LONG_TAP_ENABLE,
+            'longTapShell': self.LONG_TAP_SHELL,
+            'autoShutdownPercent': self.AUTO_SHUTDOWN_PERCENT
+        }
+        f = open(self.JSON_PATH, 'w')
+        new = json.dumps(data_to_save, sort_keys=True, indent=4, separators=(',', ': '))
+        f.write(new)
+        f.flush()
+        f.close()
+
+    def loadData(self):
+        if not os.path.exists(self.JSON_PATH):
+            return
+        f = open(self.JSON_PATH, "r")
+        try:
+            data = json.load(f)
+            self.AUTO_WAKE_TYPE = data['autoWakeType']
+            self.AUTO_WAKE_TIME = data['autoWakeTime']
+            self.AUTO_WAKE_REPEAT = data['autoWakeRepeat']
+            self.SINGLE_TAP_ENABLE = data['singleTapEnable']
+            self.SINGLE_TAP_SHELL = data['singleTapShell']
+            self.DOUBLE_TAP_ENABLE = data['doubleTapEnable']
+            self.DOUBLE_TAP_SHELL = data['doubleTapShell']
+            self.LONG_TAP_ENABLE = data['longTapEnable']
+            self.LONG_TAP_SHELL = data['longTapShell']
+            self.AUTO_SHUTDOWN_PERCENT = data['autoShutdownPercent']
+        except Exception as e:
+            print(e)
 
 
 if __name__ == "__main__":
