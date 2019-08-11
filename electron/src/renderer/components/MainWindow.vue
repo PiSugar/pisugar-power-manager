@@ -15,7 +15,7 @@
     <div class="setting-panel">
       <div class="title">Schedule Wake Up</div>
       <el-row>
-        <el-select v-model="alarmOptionValue" placeholder="Select" :disabled="!socketConnect">
+        <el-select v-model="alarmOptionValue" placeholder="Select" :disabled="!socketConnect" @change="alarmOptionValueChange">
           <el-option
                   v-for="item in alarmOption"
                   :key="item.value"
@@ -40,56 +40,56 @@
       </el-row>
       <div class="title">Custom Button Function</div>
       <el-row>
-        <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
+        <el-form ref="buttonFuncFormSingle" :model="buttonFuncForm.single" label-width="80px">
           <el-form-item label="Single Tap">
-            <el-select v-model="buttonFuncForm.single" placeholder="Select">
+            <el-select v-model="buttonFuncForm.single.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('single')">
               <el-option
-                      v-for="item in buttonFuncForm.singleOpts"
+                      v-for="item in buttonFuncForm.single.options"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value">
               </el-option>
             </el-select>
-            <el-button v-if="buttonFuncForm.single === 1">Edit</el-button>
+            <el-button v-if="buttonFuncForm.single.func === 1" @click="openShellEdit('single')" :disabled="!socketConnect">Edit</el-button>
             <span class="tag-span"><el-tag :type="singleTrigger?'success':''">Triggered</el-tag></span>
           </el-form-item>
         </el-form>
       </el-row>
       <el-row>
-        <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
+        <el-form ref="buttonFuncFormDouble" :model="buttonFuncForm.double" label-width="80px">
           <el-form-item label="Double Tap">
-            <el-select v-model="buttonFuncForm.double" placeholder="Select">
+            <el-select v-model="buttonFuncForm.double.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('double')">
               <el-option
-                      v-for="item in buttonFuncForm.doubleOpts"
+                      v-for="item in buttonFuncForm.double.options"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value">
               </el-option>
             </el-select>
-            <el-button v-if="buttonFuncForm.double === 2">Edit</el-button>
+            <el-button v-if="buttonFuncForm.double.func === 1" @click="openShellEdit('double')" :disabled="!socketConnect">Edit</el-button>
             <span class="tag-span"><el-tag :type="doubleTrigger?'success':''">Triggered</el-tag></span>
           </el-form-item>
         </el-form>
       </el-row>
       <el-row>
-        <el-form ref="buttonFuncForm" :model="buttonFuncForm" label-width="80px">
+        <el-form ref="buttonFuncFormLong" :model="buttonFuncForm.long" label-width="80px">
           <el-form-item label="Long Tap">
-            <el-select v-model="buttonFuncForm.long" placeholder="Select">
+            <el-select v-model="buttonFuncForm.long.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('long')">
               <el-option
-                      v-for="item in buttonFuncForm.longOpts"
+                      v-for="item in buttonFuncForm.long.options"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value">
               </el-option>
             </el-select>
-            <el-button v-if="buttonFuncForm.long === 2">Edit</el-button>
+            <el-button v-if="buttonFuncForm.long.func === 1" @click="openShellEdit('long')" :disabled="!socketConnect">Edit</el-button>
             <span class="tag-span"><el-tag :type="longTrigger?'success':''">Triggered</el-tag></span>
           </el-form-item>
         </el-form>
       </el-row>
       <div class="title">Safe Shutdown</div>
       <el-row>
-        <el-select v-model="safeShutdown" placeholder="请选择">
+        <el-select v-model="safeShutdown" placeholder="Please Select" :disabled="!socketConnect" @change="safeShutdownChange">
           <el-option
                   v-for="item in safeShutdownOpts"
                   :key="item.value"
@@ -100,6 +100,7 @@
       </el-row>
       <div class="sys-info">RTC Time : {{rtcTime}}</div>
     </div>
+
     <el-dialog title="Repeat" :visible.sync="repeatDialog">
       <el-row>
         <el-checkbox v-model="checkRepeatAll" @change="checkRepeatAllChange">Everyday</el-checkbox>
@@ -116,6 +117,21 @@
         </el-row>
       </el-checkbox-group>
       <br>
+    </el-dialog>
+
+    <el-dialog :title="editShellDialogTitle" :visible.sync="editShellDialog">
+      <el-row>
+        <el-form :model="editShellDialogForm">
+          <el-form-item label="Shell" label-width="50px">
+            <el-input v-model="editShellDialogCache" autocomplete="off" placeholder="Input shell script here..."></el-input>
+          </el-form-item>
+        </el-form>
+      </el-row>
+      <br>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="closeShellEdit">Cancel</el-button>
+        <el-button type="primary" @click="buttonFuncChange(editShellDialogForm.type)">Confirm</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -148,30 +164,49 @@
         doubleTrigger: true,
         longTrigger: true,
         buttonFuncForm: {
-          single: 0,
-          singleOpts: [
-            { label: 'None', value: 0 },
-            { label: 'Custom Shell', value: 1 }
-          ],
-          double: 0,
-          doubleOpts: [
-            { label: 'None', value: 0 },
-            { label: 'Shutdown', value: 1 },
-            { label: 'Custom Shell', value: 2 }
-          ],
-          long: 0,
-          longOpts: [
-            { label: 'None', value: 0 },
-            { label: 'Shutdown', value: 1 },
-            { label: 'Custom Shell', value: 2 }
-          ]
+          single: {
+            type: 'single',
+            enable: 0,
+            func: 0,
+            shell: '',
+            options: [
+              { label: 'None', value: 0 },
+              { label: 'Custom Shell', value: 1 }
+            ]
+          },
+          double: {
+            type: 'double',
+            enable: 0,
+            func: 0,
+            shell: '',
+            options: [
+              { label: 'None', value: 0 },
+              { label: 'Shutdown', value: 2 },
+              { label: 'Custom Shell', value: 1 }
+            ]
+          },
+          long: {
+            type: 'long',
+            enable: 0,
+            func: 0,
+            shell: '',
+            options: [
+              { label: 'None', value: 0 },
+              { label: 'Shutdown', value: 2 },
+              { label: 'Custom Shell', value: 1 }
+            ]
+          }
         },
-        safeShutdown: 0,
+        editShellDialogTitle: '',
+        editShellDialog: false,
+        editShellDialogCache: "",
+        editShellDialogForm: {},
+        safeShutdown: -1,
         safeShutdownOpts: [
-          { label: 'Disabled', value: 0 },
+          { label: 'Disabled', value: -1 },
           { label: '< 1%', value: 1 },
-          { label: '< 3%', value: 2 },
-          { label: '< 5%', value: 3 }
+          { label: '< 3%', value: 3 },
+          { label: '< 5%', value: 5 }
         ]
       }
     },
@@ -227,23 +262,35 @@
         const that = this
         this.$socket.onmessage = async function (e) {
           let message = await that.blob2String(e.data)
+          if (message.indexOf('battery') < 0) console.log(message)
           if (message.indexOf('model:') > -1) {
             that.model = message.replace('model: ', '')
           }
-          if (message.indexOf('battery:') > -1) {
+          if (!message.indexOf('battery:')) {
             that.batteryPercent = parseInt(message.replace('battery: ', ''))
           }
-          if (message.indexOf('battery_charging: ') > -1) {
+          if (!message.indexOf('battery_charging: ')) {
             that.batteryCharging = message.indexOf('True') > 0
           }
-          if (message.indexOf('rtc_time: ') > -1) {
-            console.log(message)
+          if (!message.indexOf('rtc_time: ')) {
             message = message.replace('rtc_time: ', '')
             that.rtcTime = new Date(message)
             that.rtcUpdateTime = new Date().getTime()
           }
-          if (message.indexOf('button_event: ') > -1) {
-            console.log(message)
+          if (!message.indexOf('alarm_type: ')) {
+            that.alarmOptionValue = parseInt(message.replace('alarm_type: ', ''))
+          }
+          if (!message.indexOf('alarm_time: ')) {
+            let timestamp = parseInt(message.replace('alarm_time: ', ''))
+            that.timeEditValue = new Date(timestamp * 1000)
+          }
+          if (!message.indexOf('alarm_repeat: ')) {
+            that.timeRepeat = parseInt(message.replace('alarm_repeat: ', ''))
+          }
+          if (!message.indexOf('safe_shutdown_level: ')) {
+            that.safeShutdown = parseInt(message.replace('safe_shutdown_level: ', ''))
+          }
+          if (!message.indexOf('button_event: ')) {
             if (message.indexOf('single') > -1) {
               that.singleTrigger = false
             }
@@ -257,7 +304,21 @@
               that.singleTrigger = true
               that.doubleTrigger = true
               that.longTrigger = true
-            }, 10)
+            }, 100)
+          }
+          if (!message.indexOf('button_enable')) {
+            let msgArr = message.split(' ')
+            that.buttonFuncForm[msgArr[1]].enable = parseInt(msgArr[2])
+            that.buttonFuncForm[msgArr[1]].func = parseInt(msgArr[2])
+          }
+          if (!message.indexOf('button_shell')) {
+            let msgArr = message.split(' ')
+            let shell = message.replace(msgArr[0] + ' ' + msgArr[1] + ' ', '').replace('\n', '')
+            let button = that.buttonFuncForm[msgArr[1]]
+            button.shell = shell
+            if (button.enable && shell === 'sudo shutdown now') {
+              button.func = 2
+            }
           }
         }
       },
@@ -269,6 +330,16 @@
             this.bindSocket()
             this.$socket.send('get model')
             this.$socket.send('get rtc_time')
+            this.$socket.send('get alarm_type')
+            this.$socket.send('get alarm_time')
+            this.$socket.send('get alarm_repeat')
+            this.$socket.send('get button_enable single')
+            this.$socket.send('get button_enable double')
+            this.$socket.send('get button_enable long')
+            this.$socket.send('get button_shell single')
+            this.$socket.send('get button_shell double')
+            this.$socket.send('get button_shell long')
+            this.$socket.send('get safe_shutdown_level')
           }
           this.socketConnect = true
           this.$socket.send('get battery')
@@ -310,11 +381,13 @@
           that.timeUpdater()
         }, 1000)
       },
+
       timeEditChange () {
         let sec = this.timeEditValue.getSeconds()
         let min = this.timeEditValue.getMinutes()
         let hour = this.timeEditValue.getHours()
-        this.$socket.send(`rtc_clock_set ${sec},${min},${hour},0,0,0,0 0b${this.timeRepeat.toString(2)}`)
+        console.log(this.timeRepeat)
+        this.$socket.send(`rtc_alarm_set ${sec},${min},${hour},0,11,8,19 0b${this.timeRepeat.toString(2)}`)
       },
       checkRepeatAllChange (value) {
         if (value) {
@@ -334,13 +407,41 @@
           this.checkRepeatAll = false
         }
         this.timeRepeat = parseInt(weekdayArray.join(''), 2)
+      },
+      buttonFuncChange (type) {
+        let button = this.buttonFuncForm[type]
+        button.shell = this.editShellDialogCache
+        button.enable = button.func > 0
+        if (button.func === 2) {
+          button.shell = 'sudo shutdown now'
+        }
+        this.$socket.send(`set_button_enable ${type} ${button.enable ? 1 : 0}`)
+        this.$socket.send(`set_button_shell ${type} ${button.shell}`)
+        this.editShellDialog = false
+      },
+      openShellEdit (type) {
+        this.editShellDialogTitle = `Shell to execute for ${type} tap`
+        this.editShellDialogForm = this.buttonFuncForm[type]
+        this.editShellDialog = true
+        this.editShellDialogCache = this.editShellDialogForm.shell
+      },
+      closeShellEdit () {
+        this.editShellDialog = false
+      },
+      safeShutdownChange () {
+        this.$socket.send(`set_safe_shutdown_level ${this.safeShutdown}`)
+      },
+      alarmOptionValueChange () {
+        if (this.alarmOptionValue) {
+          this.timeEditChange()
+        } else {
+          this.$socket.send('rtc_alarm_disable')
+        }
       }
     },
     watch: {
-      alarmOptionValue (val, oldVal) {
-        if (val) {
-          this.timeEditChange()
-        }
+      checkRepeat (val, oldVal) {
+        this.timeEditChange()
       }
     }
   }

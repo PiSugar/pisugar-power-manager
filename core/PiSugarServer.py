@@ -82,25 +82,50 @@ class PiSugarServer:
                 if req_arr[1] == "rtc_time_list":
                     print(self.CORE.RTC_TIME_LIST)
                     res_str = str(self.CORE.RTC_TIME_LIST)
-                if req_arr[1] == "rtc_clock_flag":
-                    res_str = str(self.CORE.read_clock_flag())
+                if req_arr[1] == "rtc_alarm_flag":
+                    res_str = str(self.CORE.read_alarm_flag())
+                if req_arr[1] == "alarm_type":
+                    res_str = str(self.CORE.get_alarm_type())
+                if req_arr[1] == "alarm_time":
+                    res_str = str(float(self.CORE.get_alarm_time()))
+                if req_arr[1] == "alarm_repeat":
+                    res_str = str(int(self.CORE.get_alarm_repeat()))
+                if req_arr[1] == "safe_shutdown_level":
+                    res_str = str(self.CORE.get_safe_shutdown_level())
+                if req_arr[1] == "button_enable":
+                    button_type = req_arr[2]
+                    res_str = req_arr[2] + " " + str(int(self.CORE.get_button_enable(button_type)))
+                if req_arr[1] == "button_shell":
+                    button_type = req_arr[2]
+                    res_str = req_arr[2] + " " + str(self.CORE.get_button_shell(button_type))
 
                 res_str = req_arr[1] + ": " + res_str
 
             if req_arr[0] == "rtc_clean_flag":
-                self.CORE.clean_clock_flag()
+                self.CORE.clean_alarm_flag()
                 res_str = req_arr[0] + ": done"
             if req_arr[0] == "rtc_pi2rtc":
                 self.CORE.sync_time_pi2rtc()
                 res_str = req_arr[0] + ": done"
-            if req_arr[0] == "rtc_clock_set":
-                argv1 = req_arr[1]
-                argv2 = req_arr[2]
+            if req_arr[0] == "rtc_alarm_set":
                 try:
+                    argv1 = req_arr[1]
+                    argv2 = req_arr[2]
                     time_arr = list(map(int, argv1.split(",")))
                     week_repeat = int(argv2, 2)
-                    self.CORE.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
-                    self.CORE.clean_clock_flag()
+                    self.CORE.set_rtc_alarm([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
+                    self.CORE.clean_alarm_flag()
+                    res_str = req_arr[0] + ": done"
+                except Exception as e:
+                    print(e)
+                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+            if req_arr[0] == "rtc_alarm_disable":
+                self.CORE.disable_rtc_alarm()
+                res_str = req_arr[0] + ": done"
+            if req_arr[0] == "set_safe_shutdown_level":
+                try:
+                    argv1 = int(req_arr[1])
+                    self.CORE.set_safe_shutdown_level(argv1)
                     res_str = req_arr[0] + ": done"
                 except Exception as e:
                     print(e)
@@ -108,6 +133,27 @@ class PiSugarServer:
             if req_arr[0] == "rtc_test_wake":
                 self.CORE.set_test_wake()
                 res_str = req_arr[0] + ": wakeup after 1 min 30 sec"
+            if req_arr[0] == "set_button_enable":
+                try:
+                    argv1 = req_arr[1]
+                    argv2 = req_arr[2]
+                    is_enable = True if int(argv2) == 1 else False
+                    self.CORE.set_button_enable(argv1, is_enable)
+                    res_str = req_arr[0] + ": done"
+                except Exception as e:
+                    print(e)
+                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+            if req_arr[0] == "set_button_shell":
+                try:
+                    argv1 = req_arr[1]
+                    argv2 = req_str.replace(req_arr[0] + " " + req_arr[1] + " ", "")
+                    print(argv2)
+                    self.CORE.set_button_shell(argv1, argv2)
+                    res_str = req_arr[0] + ": done"
+                except Exception as e:
+                    print(e)
+                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
+
         except Exception as e:
             print(e)
             return bytes('Invalid arguments.' + "\n", encoding='utf-8')
