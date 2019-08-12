@@ -5,12 +5,15 @@ import time
 import threading
 import asyncio
 import websockets
+import http.server
+import socketserver
 
 
 class PiSugarServer:
 
     SERVER_ADDRESS = '/tmp/pisugar.sock'
     WEBSOCKET_PORT = 3001
+    HTTP_SERVER_PORT = 8000
     CORE = None
     WEBSOCKET_LIST = []
     EVENT_ARRAY = []
@@ -18,7 +21,9 @@ class PiSugarServer:
     def __init__(self, core):
         self.CORE = core
         self.create_ws_server()
+        self.create_http_server()
         threading.Thread(name="server_thread_shell", target=self.socket_server, args=(self.SERVER_ADDRESS, True)).start()
+        # t2 = threading.Thread(name="server_thread_http", target=self.create_http_server)
 
     def socket_server(self, server_address, once):
         try:
@@ -164,6 +169,15 @@ class PiSugarServer:
         start_server = websockets.serve(self.ws_handler, "0.0.0.0", self.WEBSOCKET_PORT)
         asyncio.get_event_loop().run_until_complete(start_server)
         threading.Thread(name="server_thread_ws", target=asyncio.get_event_loop().run_forever).start()
+
+    def create_http_server(self):
+        web_dir = os.path.join(os.path.dirname(__file__), 'web')
+        os.chdir(web_dir)
+        handler = http.server.SimpleHTTPRequestHandler
+        httpd = socketserver.TCPServer(("", self.HTTP_SERVER_PORT), handler)
+        print("Http serving at port", self.HTTP_SERVER_PORT)
+        threading.Thread(name="server_thread_http", target=httpd.serve_forever).start()
+        # httpd.serve_forever()
 
     async def ws_handler(self, websocket, path):
         self.WEBSOCKET_LIST.append(websocket)

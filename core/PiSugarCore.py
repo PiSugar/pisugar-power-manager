@@ -46,7 +46,7 @@ class PiSugarCore:
     AUTO_SHUTDOWN_PERCENT = -1
 
     SERVER = None
-    JSON_PATH = "pisugar_data.json"
+    JSON_PATH = "/home/pi/pisugar_data.json"
 
     def __init__(self, local=False):
 

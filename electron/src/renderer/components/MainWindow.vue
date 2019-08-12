@@ -1,138 +1,140 @@
 <template>
   <div id="wrapper">
-    <div class="battery-info">
-      <div :class="{'show': batteryCharging}" class="charge-tag">
-        <img class="flash" src="~@/assets/flash.svg" alt="">
-        <p>Charging</p>
+    <div class="center">
+      <div class="battery-info">
+        <div :class="{'show': batteryCharging}" class="charge-tag">
+          <img class="flash" src="~@/assets/flash.svg" alt="">
+          <p>Charging</p>
+        </div>
+        <div class="battery-shape">
+          <div class="battery-content" :class="batteryColor" :style="'width:'+batteryPercent+'%'"></div>
+        </div>
+        <div class="battery-level">{{batteryPercent}}%</div>
+        <div class="battery-model">{{model}}</div>
+        <img class="logo" src="~@/assets/logo.svg" alt="">
       </div>
-      <div class="battery-shape">
-        <div class="battery-content" :class="batteryColor" :style="'width:'+batteryPercent+'%'"></div>
-      </div>
-      <div class="battery-level">{{batteryPercent}}%</div>
-      <div class="battery-model">{{model}}</div>
-      <img class="logo" src="~@/assets/logo.svg" alt="">
-    </div>
-    <div class="setting-panel">
-      <div class="title">Schedule Wake Up</div>
-      <el-row>
-        <el-select v-model="alarmOptionValue" placeholder="Select" :disabled="!socketConnect" @change="alarmOptionValueChange">
-          <el-option
-                  v-for="item in alarmOption"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value">
-          </el-option>
-        </el-select>
-        <el-time-picker
-                class="time-picker"
-                v-model="timeEditValue"
-                :disabled="alarmOptionValue === 0 || !socketConnect"
-                :picker-options="{
-                  selectableRange: '00:00:00 - 23:59:59'
-                }"
-                @change="timeEditChange"
-                placeholder="select anytime">
-        </el-time-picker>
-        <el-button v-if="alarmOptionValue === 1" :disabled="!socketConnect" @click="repeatDialog = true">Repeat</el-button>
-      </el-row>
-      <el-row>
-        <p class="desc">{{alarmMessage}}</p>
-      </el-row>
-      <div class="title">Custom Button Function</div>
-      <el-row>
-        <el-form ref="buttonFuncFormSingle" :model="buttonFuncForm.single" label-width="80px">
-          <el-form-item label="Single Tap">
-            <el-select v-model="buttonFuncForm.single.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('single')">
-              <el-option
-                      v-for="item in buttonFuncForm.single.options"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value">
-              </el-option>
-            </el-select>
-            <el-button v-if="buttonFuncForm.single.func === 1" @click="openShellEdit('single')" :disabled="!socketConnect">Edit</el-button>
-            <span class="tag-span"><el-tag :type="singleTrigger?'success':''">Triggered</el-tag></span>
-          </el-form-item>
-        </el-form>
-      </el-row>
-      <el-row>
-        <el-form ref="buttonFuncFormDouble" :model="buttonFuncForm.double" label-width="80px">
-          <el-form-item label="Double Tap">
-            <el-select v-model="buttonFuncForm.double.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('double')">
-              <el-option
-                      v-for="item in buttonFuncForm.double.options"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value">
-              </el-option>
-            </el-select>
-            <el-button v-if="buttonFuncForm.double.func === 1" @click="openShellEdit('double')" :disabled="!socketConnect">Edit</el-button>
-            <span class="tag-span"><el-tag :type="doubleTrigger?'success':''">Triggered</el-tag></span>
-          </el-form-item>
-        </el-form>
-      </el-row>
-      <el-row>
-        <el-form ref="buttonFuncFormLong" :model="buttonFuncForm.long" label-width="80px">
-          <el-form-item label="Long Tap">
-            <el-select v-model="buttonFuncForm.long.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('long')">
-              <el-option
-                      v-for="item in buttonFuncForm.long.options"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value">
-              </el-option>
-            </el-select>
-            <el-button v-if="buttonFuncForm.long.func === 1" @click="openShellEdit('long')" :disabled="!socketConnect">Edit</el-button>
-            <span class="tag-span"><el-tag :type="longTrigger?'success':''">Triggered</el-tag></span>
-          </el-form-item>
-        </el-form>
-      </el-row>
-      <div class="title">Safe Shutdown</div>
-      <el-row>
-        <el-select v-model="safeShutdown" placeholder="Please Select" :disabled="!socketConnect" @change="safeShutdownChange">
-          <el-option
-                  v-for="item in safeShutdownOpts"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value">
-          </el-option>
-        </el-select>
-      </el-row>
-      <div class="sys-info">RTC Time : {{rtcTime}}</div>
-    </div>
-
-    <el-dialog title="Repeat" :visible.sync="repeatDialog">
-      <el-row>
-        <el-checkbox v-model="checkRepeatAll" @change="checkRepeatAllChange">Everyday</el-checkbox>
-      </el-row>
-      <el-checkbox-group v-model="checkRepeat" @change="checkRepeatChange">
+      <div class="setting-panel">
+        <div class="title">Schedule Wake Up</div>
         <el-row>
-          <el-checkbox label="Monday"></el-checkbox>
-          <el-checkbox label="Tuesday"></el-checkbox>
-          <el-checkbox label="Wednesday"></el-checkbox>
-          <el-checkbox label="Thursday"></el-checkbox>
-          <el-checkbox label="Friday"></el-checkbox>
-          <el-checkbox label="Saturday"></el-checkbox>
-          <el-checkbox label="Sunday"></el-checkbox>
+          <el-select v-model="alarmOptionValue" placeholder="Select" :disabled="!socketConnect" @change="alarmOptionValueChange">
+            <el-option
+                    v-for="item in alarmOption"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value">
+            </el-option>
+          </el-select>
+          <el-time-picker
+                  class="time-picker"
+                  v-model="timeEditValue"
+                  :disabled="alarmOptionValue === 0 || !socketConnect"
+                  :picker-options="{
+                    selectableRange: '00:00:00 - 23:59:59'
+                  }"
+                  @change="timeEditChange"
+                  placeholder="select anytime">
+          </el-time-picker>
+          <el-button v-if="alarmOptionValue === 1" :disabled="!socketConnect" @click="repeatDialog = true">Repeat</el-button>
         </el-row>
-      </el-checkbox-group>
-      <br>
-    </el-dialog>
-
-    <el-dialog :title="editShellDialogTitle" :visible.sync="editShellDialog">
-      <el-row>
-        <el-form :model="editShellDialogForm">
-          <el-form-item label="Shell" label-width="50px">
-            <el-input v-model="editShellDialogCache" autocomplete="off" placeholder="Input shell script here..."></el-input>
-          </el-form-item>
-        </el-form>
-      </el-row>
-      <br>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="closeShellEdit">Cancel</el-button>
-        <el-button type="primary" @click="buttonFuncChange(editShellDialogForm.type)">Confirm</el-button>
+        <el-row>
+          <p class="desc">{{alarmMessage}}</p>
+        </el-row>
+        <div class="title">Custom Button Function</div>
+        <el-row>
+          <el-form ref="buttonFuncFormSingle" :model="buttonFuncForm.single" label-width="80px">
+            <el-form-item label="Single Tap">
+              <el-select v-model="buttonFuncForm.single.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('single')">
+                <el-option
+                        v-for="item in buttonFuncForm.single.options"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                </el-option>
+              </el-select>
+              <el-button v-if="buttonFuncForm.single.func === 1" @click="openShellEdit('single')" :disabled="!socketConnect">Edit</el-button>
+              <span class="tag-span"><el-tag :type="singleTrigger?'success':''">Triggered</el-tag></span>
+            </el-form-item>
+          </el-form>
+        </el-row>
+        <el-row>
+          <el-form ref="buttonFuncFormDouble" :model="buttonFuncForm.double" label-width="80px">
+            <el-form-item label="Double Tap">
+              <el-select v-model="buttonFuncForm.double.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('double')">
+                <el-option
+                        v-for="item in buttonFuncForm.double.options"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                </el-option>
+              </el-select>
+              <el-button v-if="buttonFuncForm.double.func === 1" @click="openShellEdit('double')" :disabled="!socketConnect">Edit</el-button>
+              <span class="tag-span"><el-tag :type="doubleTrigger?'success':''">Triggered</el-tag></span>
+            </el-form-item>
+          </el-form>
+        </el-row>
+        <el-row>
+          <el-form ref="buttonFuncFormLong" :model="buttonFuncForm.long" label-width="80px">
+            <el-form-item label="Long Tap">
+              <el-select v-model="buttonFuncForm.long.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('long')">
+                <el-option
+                        v-for="item in buttonFuncForm.long.options"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                </el-option>
+              </el-select>
+              <el-button v-if="buttonFuncForm.long.func === 1" @click="openShellEdit('long')" :disabled="!socketConnect">Edit</el-button>
+              <span class="tag-span"><el-tag :type="longTrigger?'success':''">Triggered</el-tag></span>
+            </el-form-item>
+          </el-form>
+        </el-row>
+        <div class="title">Safe Shutdown</div>
+        <el-row>
+          <el-select v-model="safeShutdown" placeholder="Please Select" :disabled="!socketConnect" @change="safeShutdownChange">
+            <el-option
+                    v-for="item in safeShutdownOpts"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value">
+            </el-option>
+          </el-select>
+        </el-row>
+        <div class="sys-info">RTC Time : {{rtcTime}}</div>
       </div>
-    </el-dialog>
+
+      <el-dialog title="Repeat" :visible.sync="repeatDialog">
+        <el-row>
+          <el-checkbox v-model="checkRepeatAll" @change="checkRepeatAllChange">Everyday</el-checkbox>
+        </el-row>
+        <el-checkbox-group v-model="checkRepeat" @change="checkRepeatChange">
+          <el-row>
+            <el-checkbox label="Monday"></el-checkbox>
+            <el-checkbox label="Tuesday"></el-checkbox>
+            <el-checkbox label="Wednesday"></el-checkbox>
+            <el-checkbox label="Thursday"></el-checkbox>
+            <el-checkbox label="Friday"></el-checkbox>
+            <el-checkbox label="Saturday"></el-checkbox>
+            <el-checkbox label="Sunday"></el-checkbox>
+          </el-row>
+        </el-checkbox-group>
+        <br>
+      </el-dialog>
+
+      <el-dialog :title="editShellDialogTitle" :visible.sync="editShellDialog">
+        <el-row>
+          <el-form :model="editShellDialogForm">
+            <el-form-item label="Shell" label-width="50px">
+              <el-input v-model="editShellDialogCache" autocomplete="off" placeholder="Input shell script here..."></el-input>
+            </el-form-item>
+          </el-form>
+        </el-row>
+        <br>
+        <div slot="footer" class="dialog-footer">
+          <el-button @click="closeShellEdit">Cancel</el-button>
+          <el-button type="primary" @click="buttonFuncChange(editShellDialogForm.type)">Confirm</el-button>
+        </div>
+      </el-dialog>
+    </div>
   </div>
 </template>
 
@@ -467,10 +469,11 @@
   }
   body {
     font-family: 'Source Sans Pro', sans-serif;
-    width: 900px;
-    height: 560px;
     position: fixed;
     background-color: orange;
+    text-align: center;
+    width: 100%;
+    height: 100%;
   }
   .setting-panel .el-date-editor.el-input, .el-date-editor.el-input__inner{
     width: 160px;
@@ -501,10 +504,17 @@
 
   #wrapper {
     background: linear-gradient(#ffe025, orange);
-    width: 100vw;
+    width: 100%;
     height: 100vw;
+    margin: 0 auto;
+    text-align: left;
   }
-
+  .center{
+    position: relative;
+    width: 900px;
+    margin: 0 auto;
+    text-align: left;
+  }
   .battery-info{
     position: absolute;
     top: 0;
