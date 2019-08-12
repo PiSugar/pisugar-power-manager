@@ -25,6 +25,11 @@ class PiSugarServer:
         threading.Thread(name="server_thread_shell", target=self.socket_server, args=(self.SERVER_ADDRESS, True)).start()
         # t2 = threading.Thread(name="server_thread_http", target=self.create_http_server)
 
+    # def kill_port(self, port):
+    #     command = '''kill -9 $(netstat -nlp | grep :''' + str(port) + ''' | awk '{print $7}' | awk -F"/" '{ print $1 }')'''
+        # print(command)
+        # os.system(command)
+
     def socket_server(self, server_address, once):
         try:
             os.unlink(server_address)
@@ -171,6 +176,7 @@ class PiSugarServer:
         threading.Thread(name="server_thread_ws", target=asyncio.get_event_loop().run_forever).start()
 
     def create_http_server(self):
+        # self.kill_port(self.HTTP_SERVER_PORT)
         web_dir = os.path.join(os.path.dirname(__file__), 'web')
         os.chdir(web_dir)
         handler = http.server.SimpleHTTPRequestHandler
