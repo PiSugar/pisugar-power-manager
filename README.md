@@ -66,6 +66,8 @@ $ python3 app.py
 
 ```
 
+#### Architecture diagram
+
 <p align="center">
   <img width="688px" src="https://raw.githubusercontent.com/PiSugar/pisugar-power-manager/master/diagram.jpg">
 </p>
