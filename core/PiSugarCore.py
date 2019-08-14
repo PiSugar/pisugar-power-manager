@@ -3,11 +3,10 @@
 
 import time
 import threading
-from smbus2 import SMBusWrapper
-import socket
-import sys
+import json
 import os
-import gevent
+from smbus2 import SMBusWrapper
+
 
 class PiSugarCore:
 
@@ -19,6 +18,7 @@ class PiSugarCore:
     BATTERY_LEVEL = -1
     BATTERY_I = 0
     BATTERY_V = 0
+    BATTERY_MODEL = ""
     RTC_ADDRESS = 0x32
     BAT_ADDRESS = 0x75
     CTR1 = 0x0f
@@ -27,25 +27,61 @@ class PiSugarCore:
 
     UPDATE_INTERVAL = 1
     TIME_UPDATE_INTERVAL = 0.5
+    GPIO_INTERVAL = 0.15
     RTC_TIME = None
     RTC_TIME_LIST = None
 
-    SERVER_ADDRESS = '/tmp/pisugar.sock'
+    AUTO_WAKE_TYPE = 0
+    AUTO_WAKE_TIME = time.time()
+    AUTO_WAKE_REPEAT = 0b0000000
 
-    def __init__(self):
+    TAP_ARRAY = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    SINGLE_TAP_ENABLE = False
+    SINGLE_TAP_SHELL = ""
+    DOUBLE_TAP_ENABLE = False
+    DOUBLE_TAP_SHELL = ""
+    LONG_TAP_ENABLE = False
+    LONG_TAP_SHELL = ""
 
-        # 初始化实例，检查i2c总线里各个芯片是否存在
-        IS_RTC_ALIVE = True
-        IS_BAT_ALIVE = True
+    AUTO_SHUTDOWN_PERCENT = -1
+
+    SERVER = None
+    JSON_PATH = os.path.expanduser('~') + "/pisugar_data.json"
+
+    def __init__(self, local=False):
+
+        # first time initial rtc
+        # self.sync_time_pi2rtc()
 
         print("Initialing PiSugar Core ...")
-        # 清除rtc报警flag
-        self.clean_clock_flag()
+        if local:
+            from PiSugarServer import PiSugarServer
+        else:
+            from core.PiSugarServer import PiSugarServer
 
-        self.battery_loop()
-        self.rtc_loop()
-        self.charge_check_loop()
-        self.start_socket_server()
+        self.SERVER = PiSugarServer(core=self)
+        self.loadData()
+        try:
+            self.battery_shutdown_threshold_set()
+            self.battery_loop()
+            self.gpio_loop()
+            self.charge_check_loop()
+            self.battery_gpio_set()
+            self.IS_BAT_ALIVE = True
+            if self.BAT_ADDRESS == 0x75:
+                self.BATTERY_MODEL = "PiSugar 2"
+        except OSError as e:
+            print("Battery i2c error...")
+            print(e)
+
+        try:
+            self.clean_alarm_flag()
+            self.rtc_loop()
+            self.IS_RTC_ALIVE = True
+        except OSError as e:
+            print("rtc i2c error...")
+            print(e)
+        self.dumpData()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -84,11 +120,11 @@ class PiSugarCore:
         ttime = PiSugarCore.__bcd2time(bcd)
         return ttime
 
-    # BCD转换为time模组
     @staticmethod
     def __bcd2time(bcd):
 
         # time模组处理str的时候，周数会自动减一。例如，数字3代表周三，但是time模组以周日为第一天，读取以后会自动减一。SD3078也是周日为第一天，此处手动加1解决匹配的问题
+        # print(bcd)
         bcd[3] = (bcd[3] - 1) % 7
 
         # 先将BCD码转化为十进制的，空格间隔的字符串：43 35 11 3 18 7 19
@@ -101,7 +137,6 @@ class PiSugarCore:
         # print(BCDtime)
         return bcd_time
 
-    # 时间戳转换为寄存器BCD码（24小时制）
     @staticmethod
     def __time2bcd(local_time):
         bcd = [
@@ -115,7 +150,6 @@ class PiSugarCore:
         ]
         return bcd
 
-    # 关闭写保护
     def __disable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
@@ -126,7 +160,6 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR1, ct)
         return
 
-    # 打开写保护
     def __enable_rtc_write_protect(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -141,7 +174,7 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
         return
 
-    def read_clock_flag(self):
+    def read_alarm_flag(self):
         with SMBusWrapper(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
             print("Read clock flag:", ct)
@@ -153,9 +186,9 @@ class PiSugarCore:
                 return 1
             return 0
 
-    def clean_clock_flag(self):
+    def clean_alarm_flag(self):
         print("Clean clock flag.")
-        if self.read_clock_flag() == 1:
+        if self.read_alarm_flag() == 1:
             with SMBusWrapper(1) as bus:
                 # 关闭写保护，写入数据
                 self.__disable_rtc_write_protect()
@@ -204,7 +237,7 @@ class PiSugarCore:
         return self.RTC_TIME
 
     '''
-    clock_time_set
+    set_rtc_alarm
     
     clock_time 
     [sec, min, hour, week, day, month, year]
@@ -214,7 +247,7 @@ class PiSugarCore:
     ep. 0b00000111 -> repeat alarm on Tue, Mon, Sun 
     '''
 
-    def clock_time_set(self, clock_time, week_repeat):
+    def set_rtc_alarm(self, clock_time, week_repeat):
         print("预计开机时间：", clock_time)
         bcd = self.__ten2bcd_list(clock_time)
         bcd[3] = week_repeat
@@ -246,6 +279,32 @@ class PiSugarCore:
             # print("CTR2数据为：", bin(ct))
             block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0x07, 7)
             print(block)
+        self.AUTO_WAKE_TYPE = 1
+        self.AUTO_WAKE_TIME = time.mktime(self.__ten2time(clock_time))
+        self.AUTO_WAKE_REPEAT = week_repeat
+        self.dumpData()
+
+    def disable_rtc_alarm(self):
+        self.AUTO_WAKE_TYPE = 0
+        with SMBusWrapper(1) as bus:
+
+            # 关闭写保护，写入数据
+            self.__disable_rtc_write_protect()
+
+            # 打开报警中断同时设置INT输出选择报警中断和频率
+            ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
+            # print(ct)
+            ct = ct | 0b01010010
+            ct = ct & 0b11011111
+            print("预计写入的数据为：", bin(ct))
+            bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
+
+            # 设置报警允许位为小时分钟秒
+            bus.write_byte_data(self.RTC_ADDRESS, 0X0E, 0b00000000)
+
+            # 数据写入完毕，打开写保护
+            self.__enable_rtc_write_protect()
+        self.dumpData()
 
     def read_battery_i(self):
         with SMBusWrapper(1) as bus:
@@ -280,6 +339,8 @@ class PiSugarCore:
             else:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
         # print("votage %d mV" % v)
+        if v != 0:
+            self.BATTERY_MODEL = "PiSugar 2"
         self.BATTERY_V = v
         return v
 
@@ -303,20 +364,93 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
+    def battery_gpio_set(self):
+        with SMBusWrapper(1) as bus:
+            # 将VSET更改为内部设置
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
+            t = t | 0b00000000
+            t = t & 0b10111111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x26, t)
+
+            # 将VSET引脚更改为GPIO模式
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x52)
+            t = t | 0b00000100
+            t = t & 0b11110111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x52, t)
+            # 将VSET的GPIO设置为输入
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x53)
+            t = t | 0b00010000
+            t = t & 0b11111111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
+
+    def read_battery_gpio(self):
+        with SMBusWrapper(1) as bus:
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
+            self.gpio_tap_detect(t)
+            return t
+
+    def gpio_tap_detect(self, tap):
+        if tap > 0:
+            tap = 1
+        del self.TAP_ARRAY[0]
+        self.TAP_ARRAY.append(tap)
+        string = "".join([str(x) for x in self.TAP_ARRAY])
+        should_refresh = False
+        current_tap_type = ""
+        if string.find("111111110") >= 0:
+            print("long tap event")
+            current_tap_type = "long"
+            should_refresh = True
+        if string.find("1010") >= 0 \
+                or string.find("10010") >= 0 \
+                or string.find("10110") >= 0\
+                or string.find("100110") >= 0\
+                or string.find("101110") >= 0\
+                or string.find("1001110") >= 0:
+            print("double tap event")
+            current_tap_type = "double"
+            should_refresh = True
+        if string.find("1000") >= 0:
+            print("single tap event")
+            current_tap_type = "single"
+            should_refresh = True
+        if current_tap_type != "":
+            self.SERVER.ws_broadcast(current_tap_type)
+        if current_tap_type == "single" and self.SINGLE_TAP_ENABLE:
+            self.execute_shell_async(self.SINGLE_TAP_SHELL)
+        if current_tap_type == "double" and self.DOUBLE_TAP_ENABLE:
+            self.execute_shell_async(self.DOUBLE_TAP_SHELL)
+        if current_tap_type == "long" and self.LONG_TAP_ENABLE:
+            self.execute_shell_async(self.LONG_TAP_SHELL)
+        if should_refresh:
+            self.TAP_ARRAY = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        # print(self.TAP_ARRAY)
+
     def battery_loop(self):
         self.BATTERY_I = self.read_battery_i()
         self.BATTERY_V = self.read_battery_v()
         self.BATTERY_LEVEL = self.get_battery_percent()
         self.battery_shutdown_threshold_set()
-        # print("system power: %d mW" % (self.BATTERY_I * self.BATTERY_V / 1000))
-        # print("Battery level: %d%%" % self.BATTERY_LEVEL)
+        if self.BATTERY_LEVEL < self.AUTO_SHUTDOWN_PERCENT:
+            self.execute_shell_async("sudo shutdown now")
         threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
 
     def rtc_loop(self):
-        self.read_time()
+        try:
+            self.read_time()
+        except ValueError as error:
+            print(error)
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
 
+    def gpio_loop(self):
+        current = self.read_battery_gpio()
+        if current == 0:
+            threading.Timer(self.GPIO_INTERVAL, self.gpio_loop).start()
+        else:
+            threading.Timer(self.GPIO_INTERVAL / 3, self.gpio_loop).start()
+
     def charge_check_loop(self):
+        # print("check charging")
         if self.BATTERY_LEVEL == -1:
             threading.Timer(self.UPDATE_INTERVAL, self.charge_check_loop).start()
             return
@@ -331,14 +465,24 @@ class PiSugarCore:
         min_lv = min(self.BATTERY_LEVEL_RECORD)
         min_index = self.BATTERY_LEVEL_RECORD.index(min_lv)
         result = None
-        if max_lv - min_lv > 1:
+        if max_lv - min_lv > 0.8:
             if max_index > min_index:
                 result = True
             else:
                 result = False
-        elif max_lv - min_lv < 0.15:
+        elif max_lv - min_lv < 0.2:
             result = False
         if result is not None:
+            # print("charing?", result)
+            if not result:
+                start_index = 1
+                acc = 0
+                while start_index < 10:
+                    acc += self.BATTERY_LEVEL_RECORD[start_index] - self.BATTERY_LEVEL_RECORD[start_index - 1]
+                    start_index += 1
+                if acc > 0.2:
+                    result = True
+                # print(acc)
             self.IS_CHARGING = result
         threading.Timer(self.UPDATE_INTERVAL, self.charge_check_loop).start()
 
@@ -373,7 +517,7 @@ class PiSugarCore:
         return batter_level
 
     def get_model(self):
-        return "PiSugar 2"
+        return self.BATTERY_MODEL
 
     def set_test_wake(self):
         print("wakeup after 1min30sec")
@@ -388,102 +532,119 @@ class PiSugarCore:
         if current_time[1] >= 60:
             current_time[1] = current_time[1] - 60
             current_time[2] = current_time[2] + 1
-        self.clock_time_set(current_time, 0b0111111)
+        self.set_rtc_alarm(current_time, 0b0111111)
 
-    def socket_server(self):
+    def dumpData(self):
+        # save data to local file
+        data_to_save = {
+            'autoWakeType': self.AUTO_WAKE_TYPE,
+            'autoWakeTime': self.AUTO_WAKE_TIME,
+            'autoWakeRepeat': self.AUTO_WAKE_REPEAT,
+            'singleTapEnable': self.SINGLE_TAP_ENABLE,
+            'singleTapShell': self.SINGLE_TAP_SHELL,
+            'doubleTapEnable': self.DOUBLE_TAP_ENABLE,
+            'doubleTapShell': self.DOUBLE_TAP_SHELL,
+            'longTapEnable': self.LONG_TAP_ENABLE,
+            'longTapShell': self.LONG_TAP_SHELL,
+            'autoShutdownPercent': self.AUTO_SHUTDOWN_PERCENT
+        }
+        print(data_to_save)
+        f = open(self.JSON_PATH, 'w')
+        new = json.dumps(data_to_save, sort_keys=True, indent=4, separators=(',', ': '))
+        f.write(new)
+        f.flush()
+        f.close()
+
+    def loadData(self):
+        if not os.path.exists(self.JSON_PATH):
+            return
+        f = open(self.JSON_PATH, "r")
+        print(f)
         try:
-            os.unlink(self.SERVER_ADDRESS)
-        except OSError:
-            if os.path.exists(self.SERVER_ADDRESS):
-                raise
-        # Create a UDS socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-        # Bind the socket to the port
-        print(sys.stderr, 'starting up on %s' % self.SERVER_ADDRESS)
-        sock.bind(self.SERVER_ADDRESS)
-
-        # Listen for incoming connections
-        sock.listen(1)
-
-        while True:
-            # Wait for a connection
-            connection, client_address = sock.accept()
-            try:
-                while True:
-                    data = connection.recv(64)
-                    if data:
-                        # print(sys.stderr, 'sending data back to the client')
-                        response = self.socket_handler(data)
-                        connection.sendall(response)
-                        connection.close()
-                        break
-                    else:
-                        print(sys.stderr, 'no more data from', client_address)
-                        connection.close()
-                        break
-            finally:
-                # Clean up the connection
-                connection.close()
-
-    def socket_handler(self, data):
-        req_str = str(data.decode(encoding="utf-8")).replace("\n", "")
-        req_arr = req_str.split(" ")
-        res_str = ""
-
-        try:
-            if req_arr[0] == "get":
-                if req_arr[1] == "model":
-                    res_str = self.get_model()
-                if req_arr[1] == "battery":
-                    res_str = str(self.BATTERY_LEVEL)
-                if req_arr[1] == "battery_v":
-                    res_str = str(self.BATTERY_V)
-                if req_arr[1] == "battery_i":
-                    res_str = str(self.BATTERY_I)
-                if req_arr[1] == "battery_charging":
-                    res_str = str(self.IS_CHARGING)
-                if req_arr[1] == "rtc_time":
-                    res_str = time.strftime("%w %b %d %H:%M:%S %Y", self.RTC_TIME)
-                if req_arr[1] == "rtc_time_list":
-                    print(self.RTC_TIME_LIST)
-                    res_str = str(self.RTC_TIME_LIST)
-                if req_arr[1] == "rtc_clock_flag":
-                    res_str = str(self.read_clock_flag())
-            if req_arr[0] == "rtc_clean_flag":
-                self.clean_clock_flag()
-                res_str = "done"
-            if req_arr[0] == "rtc_pi2rtc":
-                self.sync_time_pi2rtc()
-                res_str = "done"
-            if req_arr[0] == "rtc_clock_set":
-                argv1 = req_arr[1]
-                argv2 = req_arr[2]
-                try:
-                    time_arr = list(map(int, argv1.split(",")))
-                    week_repeat = int(argv2, 2)
-                    self.clock_time_set([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
-                    self.clean_clock_flag()
-                    res_str = "done"
-                except Exception as e:
-                    print(e)
-                    return bytes('Invalid arguments.' + "\n", encoding='utf-8')
-            if req_arr[0] == "rtc_test_wake":
-                self.set_test_wake()
-                res_str = "wakeup after 1 min 30 sec"
+            data = json.load(f)
+            self.AUTO_WAKE_TYPE = data['autoWakeType']
+            self.AUTO_WAKE_TIME = data['autoWakeTime']
+            self.AUTO_WAKE_REPEAT = data['autoWakeRepeat']
+            self.SINGLE_TAP_ENABLE = data['singleTapEnable']
+            self.SINGLE_TAP_SHELL = data['singleTapShell']
+            self.DOUBLE_TAP_ENABLE = data['doubleTapEnable']
+            self.DOUBLE_TAP_SHELL = data['doubleTapShell']
+            self.LONG_TAP_ENABLE = data['longTapEnable']
+            self.LONG_TAP_SHELL = data['longTapShell']
+            self.AUTO_SHUTDOWN_PERCENT = data['autoShutdownPercent']
         except Exception as e:
             print(e)
-            return bytes('Invalid arguments.' + "\n", encoding='utf-8')
-        return bytes(res_str + "\n", encoding='utf-8')
 
-    def start_socket_server(self):
-        gevent.spawn(self.socket_server).join()
+    def get_button_enable(self, button_type):
+        if button_type == "single":
+            return self.SINGLE_TAP_ENABLE
+        if button_type == "double":
+            return self.DOUBLE_TAP_ENABLE
+        if button_type == "long":
+            return self.LONG_TAP_ENABLE
+
+    def set_button_enable(self, button_type, is_enable):
+        if button_type == "single":
+            self.SINGLE_TAP_ENABLE = is_enable
+        if button_type == "double":
+            self.DOUBLE_TAP_ENABLE = is_enable
+        if button_type == "long":
+            self.LONG_TAP_ENABLE = is_enable
+        self.dumpData()
+
+    def get_button_shell(self, button_type):
+        if button_type == "single":
+            return self.SINGLE_TAP_SHELL
+        if button_type == "double":
+            return self.DOUBLE_TAP_SHELL
+        if button_type == "long":
+            return self.LONG_TAP_SHELL
+
+    def set_button_shell(self, button_type, shell):
+        if button_type == "single":
+            self.SINGLE_TAP_SHELL = shell
+        if button_type == "double":
+            self.DOUBLE_TAP_SHELL = shell
+        if button_type == "long":
+            self.LONG_TAP_SHELL = shell
+        self.dumpData()
+
+    def set_safe_shutdown_level(self, percent):
+        self.AUTO_SHUTDOWN_PERCENT = percent
+        self.dumpData()
+
+    def get_safe_shutdown_level(self):
+        return self.AUTO_SHUTDOWN_PERCENT
+
+    def get_alarm_type(self):
+        return self.AUTO_WAKE_TYPE
+
+    def get_alarm_time(self):
+        return self.AUTO_WAKE_TIME
+
+    def get_alarm_repeat(self):
+        return self.AUTO_WAKE_REPEAT
+
+    def execute_shell_async(self, shell):
+        threading.Thread(name="execute_shell", target=self.execute_shell, args=(shell,)).start()
+
+    def execute_shell(self, shell):
+        if shell != '':
+            print('Execute shell : ' + shell)
+            os.system(shell)
+        else:
+            print('Empty shell!')
 
 
 if __name__ == "__main__":
-    core = PiSugarCore()
 
+    core = PiSugarCore(local=True)
+    # core.sync_time_pi2rtc()
+
+    # core.battery_GPIO_set()
     # wake up after 1 min 30 sec
-    #core.set_test_wake()
-
-    print("Hello PiSugar 2")
+    # core.set_test_wake()
+    # while 1:
+    #     time.sleep(0.15)
+    #     print(core.read_battery_GPIO())
+    # print("Hello PiSugar 2")
