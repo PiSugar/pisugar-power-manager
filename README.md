@@ -67,5 +67,5 @@ $ python3 app.py
 ```
 
 <p align="center">
-  <img width="600px" src="https://raw.githubusercontent.com/PiSugar/pisugar-power-manager/master/diagram.jpg">
+  <img width="688px" src="https://raw.githubusercontent.com/PiSugar/pisugar-power-manager/master/diagram.jpg">
 </p>
