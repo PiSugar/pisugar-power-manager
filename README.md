@@ -4,7 +4,7 @@
   <img width="320" src="https://raw.githubusercontent.com/JdaieLin/PiSugar/master/logo.jpg">
 </p>
 
-Management program for PiSugar 2
+### Management program for PiSugar 2
 
 Install
 ```
@@ -65,3 +65,7 @@ $ export DISPLAY=:0
 $ python3 app.py
 
 ```
+
+<p align="center">
+  <img width="600px" src="https://raw.githubusercontent.com/PiSugar/pisugar-power-manager/master/diagram.jpg">
+</p>
