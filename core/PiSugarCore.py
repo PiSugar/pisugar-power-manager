@@ -61,6 +61,8 @@ class PiSugarCore:
 
         self.SERVER = PiSugarServer(core=self)
         self.loadData()
+
+    '''
         try:
             self.battery_shutdown_threshold_set()
             self.battery_loop()
@@ -82,6 +84,8 @@ class PiSugarCore:
             print("rtc i2c error...")
             print(e)
         self.dumpData()
+    '''
+
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -364,6 +368,24 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
+
+    def battery_shutdown_threshold_set_P(self):
+        with SMBusWrapper(1) as bus:
+
+            # 设置阈值电流和打开使能
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x0c)
+            t = (t & 0b00000111)
+            t = t | (12 << 3)
+            t = 0xFF
+            bus.write_byte_data(self.BAT_ADDRESS, 0x0c, t)
+
+            # 设置关机时间
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x07)
+            t = t | 0b01000000
+            t = t & 0b01111111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x04, t)
+
+
     def battery_gpio_set(self):
         with SMBusWrapper(1) as bus:
             # 将VSET更改为内部设置
@@ -639,12 +661,9 @@ class PiSugarCore:
 if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
-    # core.sync_time_pi2rtc()
+    core.sync_time_pi2rtc()
+    core.battery_shutdown_threshold_set_P()
 
-    # core.battery_GPIO_set()
+
     # wake up after 1 min 30 sec
-    # core.set_test_wake()
-    # while 1:
-    #     time.sleep(0.15)
-    #     print(core.read_battery_GPIO())
-    # print("Hello PiSugar 2")
+    core.set_test_wake()
