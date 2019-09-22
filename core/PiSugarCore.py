@@ -52,7 +52,7 @@ class PiSugarCore:
 
         # first time initial rtc
         # self.sync_time_pi2rtc()
-
+        '''
         print("Initialing PiSugar Core ...")
         if local:
             from PiSugarServer import PiSugarServer
@@ -62,7 +62,7 @@ class PiSugarCore:
         self.SERVER = PiSugarServer(core=self)
         self.loadData()
 
-    '''
+
         try:
             self.battery_shutdown_threshold_set()
             self.battery_loop()
@@ -213,8 +213,10 @@ class PiSugarCore:
             print(localtime)
             bcd = self.__time2bcd(localtime)
             # 设置为24小时制
-            bcd[2] = bcd[2] | 0b10000000
 
+            print(bcd[2])
+            bcd[2] = bcd[2] | 0b10000000
+            print(bcd[2])
             # 关闭写保护，写入数据
             self.__disable_rtc_write_protect()
             bus.write_i2c_block_data(self.RTC_ADDRESS, 0, bcd)
@@ -327,7 +329,7 @@ class PiSugarCore:
         # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
-
+    
     def read_battery_v(self):
         with SMBusWrapper(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa2)
@@ -368,22 +370,35 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
-
+    #P版本关机轻载阈值设定，SYSI总电流，不会随电池电压降低而增加
     def battery_shutdown_threshold_set_P(self):
         with SMBusWrapper(1) as bus:
 
             # 设置阈值电流和打开使能
-            t = bus.read_byte_data(self.BAT_ADDRESS, 0x0c)
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x84)
             t = (t & 0b00000111)
             t = t | (12 << 3)
             t = 0xFF
-            bus.write_byte_data(self.BAT_ADDRESS, 0x0c, t)
+            bus.write_byte_data(self.BAT_ADDRESS, 0x84, t)
 
             # 设置关机时间
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x07)
             t = t | 0b01000000
             t = t & 0b01111111
-            bus.write_byte_data(self.BAT_ADDRESS, 0x04, t)
+            bus.write_byte_data(self.BAT_ADDRESS, 0x07, t)
+
+    #P版本强制关机，主要用于解决树莓派关机后轻载电流依然过大的问题
+    def battery_force_shutdown_P(self):
+        with SMBusWrapper(1) as bus:
+            # 开启强制关机开关
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x5B)
+            t = t | 0b00010010
+            bus.write_byte_data(self.BAT_ADDRESS, 0x5B, t)
+
+            # 强制关机
+            t = bus.read_byte_data(self.BAT_ADDRESS, 0x5B)
+            t = t & 0b11101111
+            bus.write_byte_data(self.BAT_ADDRESS, 0x5B, t)
 
 
     def battery_gpio_set(self):
@@ -546,7 +561,7 @@ class PiSugarCore:
         self.sync_time_pi2rtc()
         current_time = self.read_time()
         current_time[0] = current_time[0] + 30
-        current_time[1] = current_time[1] + 1
+        current_time[1] = current_time[1] + 0
         if current_time[0] >= 60:
             current_time[1] = current_time[1] + 1
             current_time[0] = current_time[0] - 60
@@ -661,9 +676,10 @@ class PiSugarCore:
 if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
-    core.sync_time_pi2rtc()
+    #core.sync_time_pi2rtc()
     core.battery_shutdown_threshold_set_P()
 
 
     # wake up after 1 min 30 sec
     core.set_test_wake()
+    core.battery_force_shutdown_P()
