@@ -312,6 +312,7 @@ class PiSugarCore:
             self.__enable_rtc_write_protect()
         self.dumpData()
 
+    #zero版本读取电池电流
     def read_battery_i(self):
         with SMBusWrapper(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa4)
@@ -329,7 +330,8 @@ class PiSugarCore:
         # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
-    
+
+    #zero版本读取电池电压
     def read_battery_v(self):
         with SMBusWrapper(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa2)
@@ -350,6 +352,7 @@ class PiSugarCore:
         self.BATTERY_V = v
         return v
 
+    #Zero版本设置关机阈值
     def battery_shutdown_threshold_set(self):
         with SMBusWrapper(1) as bus:
 
