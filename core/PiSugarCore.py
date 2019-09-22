@@ -559,14 +559,14 @@ class PiSugarCore:
 
     #检测硬件版本
     def get_model(self):
-        
+
         return self.BATTERY_MODEL
 
     def set_test_wake(self):
         print("wakeup after 1min30sec")
         self.sync_time_pi2rtc()
         current_time = self.read_time()
-        current_time[0] = current_time[0] + 30
+        current_time[0] = current_time[0] + 5
         current_time[1] = current_time[1] + 0
         if current_time[0] >= 60:
             current_time[1] = current_time[1] + 1
