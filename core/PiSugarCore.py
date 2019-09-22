@@ -429,6 +429,7 @@ class PiSugarCore:
             self.gpio_tap_detect(t)
             return t
 
+    #Zero版本检测按下
     def gpio_tap_detect(self, tap):
         if tap > 0:
             tap = 1
@@ -556,7 +557,9 @@ class PiSugarCore:
         self.BATTERY_LEVEL = batter_level
         return batter_level
 
+    #检测硬件版本
     def get_model(self):
+        
         return self.BATTERY_MODEL
 
     def set_test_wake(self):
