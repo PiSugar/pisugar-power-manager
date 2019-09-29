@@ -5,7 +5,7 @@ import time
 import threading
 import json
 import os
-from smbus2 import SMBusWrapper
+from smbus2 import SMBus
 
 
 class PiSugarCore:
@@ -155,7 +155,7 @@ class PiSugarCore:
         return bcd
 
     def __disable_rtc_write_protect(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
             ct = ct | 0b10000000
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
@@ -165,7 +165,7 @@ class PiSugarCore:
         return
 
     def __enable_rtc_write_protect(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
             # print(ct)
             ct = ct & 0b01111011
@@ -179,7 +179,7 @@ class PiSugarCore:
         return
 
     def read_alarm_flag(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
             print("Read clock flag:", ct)
             if ct & 0b00100000:
@@ -193,7 +193,7 @@ class PiSugarCore:
     def clean_alarm_flag(self):
         print("Clean clock flag.")
         if self.read_alarm_flag() == 1:
-            with SMBusWrapper(1) as bus:
+            with SMBus(1) as bus:
                 # 关闭写保护，写入数据
                 self.__disable_rtc_write_protect()
                 ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -207,7 +207,7 @@ class PiSugarCore:
 
     def sync_time_pi2rtc(self):
         print("Syncing Pi time to RTC...")
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             ticks = time.time()
             localtime = time.localtime(ticks)
             print(localtime)
@@ -226,7 +226,7 @@ class PiSugarCore:
         return
 
     def read_time(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0, 7)
             # print(block)
             # 屏蔽判断位
@@ -258,7 +258,7 @@ class PiSugarCore:
         bcd = self.__ten2bcd_list(clock_time)
         bcd[3] = week_repeat
         print("经过转换后：", bcd)
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
 
             # 关闭写保护，写入数据
             self.__disable_rtc_write_protect()
@@ -292,7 +292,7 @@ class PiSugarCore:
 
     def disable_rtc_alarm(self):
         self.AUTO_WAKE_TYPE = 0
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
 
             # 关闭写保护，写入数据
             self.__disable_rtc_write_protect()
@@ -312,9 +312,32 @@ class PiSugarCore:
             self.__enable_rtc_write_protect()
         self.dumpData()
 
+
+    #P版本读取SYS电流
+    def read_sys_i_P(self):
+        with SMBus(1) as bus:
+            low = bus.read_byte_data(self.BAT_ADDRESS, 0x6a)
+            high = bus.read_byte_data(self.BAT_ADDRESS, 0x6b)
+            # print(bin(high))
+            # print(bin(low))
+            if high & 0x20:
+                low = ~low & 0xff
+                high = (~high) & 0x1f
+                # print(bin(high))
+                # print(bin(low))
+                i = -(high * 256 + low + 1) * 0.6394
+            else:
+                i = ((high & 0x1f) * 256 + low + 1) * 0.6394
+        print("current %d mA" % i)
+        #self.BATTERY_I = i
+        return i
+
+
+
+
     #zero版本读取电池电流
     def read_battery_i(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa4)
             high = bus.read_byte_data(self.BAT_ADDRESS, 0xa5)
             # print(bin(high))
@@ -333,7 +356,7 @@ class PiSugarCore:
 
     #zero版本读取电池电压
     def read_battery_v(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa2)
             high = bus.read_byte_data(self.BAT_ADDRESS, 0xa3)
             # print(bin(high))
@@ -354,7 +377,7 @@ class PiSugarCore:
 
     #Zero版本设置关机阈值
     def battery_shutdown_threshold_set(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
 
             # 设置阈值电流
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x0c)
@@ -375,7 +398,7 @@ class PiSugarCore:
 
     #P版本关机轻载阈值设定，SYSI总电流，不会随电池电压降低而增加
     def battery_shutdown_threshold_set_P(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
 
             # 设置阈值电流和打开使能
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x84)
@@ -392,7 +415,7 @@ class PiSugarCore:
 
     #P版本强制关机，主要用于解决树莓派关机后轻载电流依然过大的问题
     def battery_force_shutdown_P(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             # 开启强制关机开关
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x5B)
             t = t | 0b00010010
@@ -405,7 +428,7 @@ class PiSugarCore:
 
 
     def battery_gpio_set(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             # 将VSET更改为内部设置
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x26)
             t = t | 0b00000000
@@ -424,7 +447,7 @@ class PiSugarCore:
             bus.write_byte_data(self.BAT_ADDRESS, 0x53, t)
 
     def read_battery_gpio(self):
-        with SMBusWrapper(1) as bus:
+        with SMBus(1) as bus:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x55)
             self.gpio_tap_detect(t)
             return t
@@ -684,8 +707,9 @@ if __name__ == "__main__":
     core = PiSugarCore(local=True)
     #core.sync_time_pi2rtc()
     core.battery_shutdown_threshold_set_P()
-
-
+    while (1):
+        core.read_sys_i_P()
+        time.sleep(1)
     # wake up after 1 min 30 sec
-    core.set_test_wake()
-    core.battery_force_shutdown_P()
+    #core.set_test_wake()
+    #core.battery_force_shutdown_P()
