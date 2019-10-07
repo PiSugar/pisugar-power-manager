@@ -13,6 +13,7 @@
         <div class="battery-model">{{model}}</div>
         <img class="logo" src="~@/assets/logo.svg" alt="">
       </div>
+
       <div class="setting-panel">
         <div class="title">Schedule Wake Up</div>
         <el-row>
@@ -99,7 +100,10 @@
             </el-option>
           </el-select>
         </el-row>
-        <div class="sys-info">RTC Time : {{rtcTime}}</div>
+      </div>
+
+      <div class="rtc-panel">
+        <div class="sys-info"><el-button icon="el-icon-refresh" circle @click="timeDialog = true"></el-button>  <span class="text">RTC Time : {{rtcTime}}</span></div>
       </div>
 
       <el-dialog title="Repeat" :visible.sync="repeatDialog">
@@ -118,6 +122,18 @@
           </el-row>
         </el-checkbox-group>
         <br>
+      </el-dialog>
+
+      <el-dialog title="Sync Time" :visible.sync="timeDialog">
+        <el-row>
+          RTC Time : {{rtcTime}}
+        </el-row>
+        <br>
+        <el-row>
+          <el-button @click="syncPi2RTC">Pi > RTC</el-button>
+          <el-button @click="syncRTC2Pi">RTC > Pi</el-button>
+          <el-button @click="syncWebTime">Web > Pi & RTC</el-button>
+        </el-row>
       </el-dialog>
 
       <el-dialog :title="editShellDialogTitle" :visible.sync="editShellDialog">
@@ -209,7 +225,8 @@
           { label: '< 1%', value: 1 },
           { label: '< 3%', value: 3 },
           { label: '< 5%', value: 5 }
-        ]
+        ],
+        timeDialog: false
       }
     },
     mounted () {
@@ -360,6 +377,27 @@
           }, 1000)
         }
       },
+      syncPi2RTC () {
+        this.$socket.send('rtc_pi2rtc')
+        setTimeout(() => {
+          this.$socket.send('get rtc_time')
+        }, 1000)
+        this.timeDialog = false
+      },
+      syncRTC2Pi () {
+        this.$socket.send('rtc_rtc2pi')
+        setTimeout(() => {
+          this.$socket.send('get rtc_time')
+        }, 1000)
+        this.timeDialog = false
+      },
+      syncWebTime () {
+        this.$socket.send('rtc_web')
+        setTimeout(() => {
+          this.$socket.send('get rtc_time')
+        }, 1000)
+        this.timeDialog = false
+      },
       blob2String (blob) {
         return new Promise((resolve, reject) => {
           let reader = new FileReader()
@@ -383,7 +421,6 @@
           that.timeUpdater()
         }, 1000)
       },
-
       timeEditChange () {
         let sec = this.timeEditValue.getSeconds()
         let min = this.timeEditValue.getMinutes()
@@ -520,7 +557,7 @@
     top: 0;
     left: 0;
     width: 350px;
-    height: 560px;
+    height: 595px;
   }
 
   .charge-tag{
@@ -626,7 +663,7 @@
     top: 20px;
     right: 20px;
     width: 550px;
-    height: 520px;
+    height: 470px;
     padding: 0 30px;
     background-color: #fff;
     border-radius: 8px;
@@ -642,10 +679,24 @@
       font-size: 12px;
     }
   }
+  .rtc-panel{
+    position: absolute;
+    top: 500px;
+    right: 20px;
+    width: 550px;
+    height: 60px;
+    padding: 0 30px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px 2px rgba(157, 104, 0, 0.1);
+  }
   .sys-info{
-    margin-top: 20px;
-    font-size: 12px;
+    margin-top: 10px;
+    font-size: 14px;
     color: #999;
+    .text{
+      margin-left: 10px;
+    }
   }
 
 </style>

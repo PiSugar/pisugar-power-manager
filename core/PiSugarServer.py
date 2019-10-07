@@ -117,6 +117,12 @@ class PiSugarServer:
             if req_arr[0] == "rtc_pi2rtc":
                 self.CORE.sync_time_pi2rtc()
                 res_str = req_arr[0] + ": done"
+            if req_arr[0] == "rtc_rtc2pi":
+                self.CORE.sync_time_rtc2pi()
+                res_str = req_arr[0] + ": done"
+            if req_arr[0] == "rtc_web":
+                self.CORE.sync_time_web()
+                res_str = req_arr[0] + ": done"
             if req_arr[0] == "rtc_alarm_set":
                 try:
                     argv1 = req_arr[1]

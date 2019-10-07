@@ -5,10 +5,13 @@ import time
 import threading
 import json
 import os
+import http.client
 from smbus2 import SMBus
 
 
 class PiSugarCore:
+
+    TIME_HOST = "cdn.pisugar.com"
 
     IS_RTC_ALIVE = False
     IS_BAT_ALIVE = False
@@ -24,6 +27,7 @@ class PiSugarCore:
     CTR1 = 0x0f
     CTR2 = 0x10
     CTR3 = 0x11
+    IS_PRO = True
 
     UPDATE_INTERVAL = 1
     TIME_UPDATE_INTERVAL = 0.5
@@ -50,9 +54,6 @@ class PiSugarCore:
 
     def __init__(self, local=False):
 
-        # first time initial rtc
-        # self.sync_time_pi2rtc()
-        '''
         print("Initialing PiSugar Core ...")
         if local:
             from PiSugarServer import PiSugarServer
@@ -62,19 +63,38 @@ class PiSugarCore:
         self.SERVER = PiSugarServer(core=self)
         self.loadData()
 
-
         try:
-            self.battery_shutdown_threshold_set()
-            self.battery_loop()
-            self.gpio_loop()
-            self.charge_check_loop()
-            self.battery_gpio_set()
-            self.IS_BAT_ALIVE = True
-            if self.BAT_ADDRESS == 0x75:
-                self.BATTERY_MODEL = "PiSugar 2"
+            v = self.read_battery_v()
+            if v == 0:
+                self.IS_PRO = False
+            v = self.read_battery_v_P()
+            if v== 0:
+                self.IS_PRO = True
         except OSError as e:
-            print("Battery i2c error...")
             print(e)
+
+        if self.IS_PRO:
+            try:
+                self.battery_shutdown_threshold_set_P()
+                self.battery_loop_P()
+                self.charge_check_loop()
+                self.IS_BAT_ALIVE = True
+                self.BATTERY_MODEL = "PiSugar 2 Pro"
+            except OSError as e:
+                print("Battery i2c error...")
+                print(e)
+        else:
+            try:
+                self.battery_shutdown_threshold_set()
+                self.battery_loop()
+                self.gpio_loop()
+                self.charge_check_loop()
+                self.battery_gpio_set()
+                self.IS_BAT_ALIVE = True
+                self.BATTERY_MODEL = "PiSugar 2"
+            except OSError as e:
+                print("Battery i2c error...")
+                print(e)
 
         try:
             self.clean_alarm_flag()
@@ -83,9 +103,9 @@ class PiSugarCore:
         except OSError as e:
             print("rtc i2c error...")
             print(e)
-        self.dumpData()
-    '''
 
+        print(self.get_battery_percent())
+        self.dump_data()
 
     def get_status(self):
         return self.IS_BAT_ALIVE, self.IS_RTC_ALIVE
@@ -214,9 +234,7 @@ class PiSugarCore:
             bcd = self.__time2bcd(localtime)
             # 设置为24小时制
 
-            print(bcd[2])
             bcd[2] = bcd[2] | 0b10000000
-            print(bcd[2])
             # 关闭写保护，写入数据
             self.__disable_rtc_write_protect()
             bus.write_i2c_block_data(self.RTC_ADDRESS, 0, bcd)
@@ -224,6 +242,35 @@ class PiSugarCore:
             # 数据写入完毕，打开写保护
             self.__enable_rtc_write_protect()
         return
+
+    def sync_time_rtc2pi(self):
+        print ("Syncing RTC time to Pi...")
+        time_string = time.strftime("%Y-%m-%d %H:%M:%S", self.RTC_TIME)
+        os.system('sudo date -s "%s"' % time_string)
+        print (time_string)
+
+    def sync_time_web(self):
+        print ("Syncing Web time to RTC & Pi...")
+        try:
+            conn = http.client.HTTPConnection(self.TIME_HOST)
+            conn.request("GET", "/")
+            r = conn.getresponse()
+            ts = r.getheader('date')
+            print (ts)
+            ltime = time.strptime(ts[5:25], "%d %b %Y %H:%M:%S")
+            ttime = time.localtime(time.mktime(ltime) + 8 * 60 * 60)
+            time_string = time.strftime("%Y-%m-%d %H:%M:%S", ttime)
+            print (time_string)
+            tm = "date -s \"%s\"" % time_string
+            os.system(tm)
+            print("Update system time successfully!")
+            self.sync_time_pi2rtc()
+            print("Sync time Pi => RTC successfully!")
+        except EnvironmentError as e:
+            print ("Sync web time except")
+            print (e)
+            return None
+
 
     def read_time(self):
         with SMBus(1) as bus:
@@ -288,7 +335,7 @@ class PiSugarCore:
         self.AUTO_WAKE_TYPE = 1
         self.AUTO_WAKE_TIME = time.mktime(self.__ten2time(clock_time))
         self.AUTO_WAKE_REPEAT = week_repeat
-        self.dumpData()
+        self.dump_data()
 
     def disable_rtc_alarm(self):
         self.AUTO_WAKE_TYPE = 0
@@ -310,29 +357,40 @@ class PiSugarCore:
 
             # 数据写入完毕，打开写保护
             self.__enable_rtc_write_protect()
-        self.dumpData()
+        self.dump_data()
 
 
     #P版本读取SYS电流
-    def read_sys_i_P(self):
+    def read_battery_i_P(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0x6a)
             high = bus.read_byte_data(self.BAT_ADDRESS, 0x6b)
-            # print(bin(high))
-            # print(bin(low))
             if high & 0x20:
                 low = ~low & 0xff
                 high = (~high) & 0x1f
-                # print(bin(high))
-                # print(bin(low))
                 i = -(high * 256 + low + 1) * 0.6394
             else:
                 i = ((high & 0x1f) * 256 + low + 1) * 0.6394
-        print("current %d mA" % i)
-        #self.BATTERY_I = i
+        # print("current %d mA" % i)
+        self.BATTERY_I = i
         return i
 
 
+    # P版本读取SYS电压
+    def read_battery_v_P(self):
+        with SMBus(1) as bus:
+            low = bus.read_byte_data(self.BAT_ADDRESS, 0x64)
+            high = bus.read_byte_data(self.BAT_ADDRESS, 0x65)
+            if high & 0x20:
+                low = ~low & 0xff
+                high = (~high) & 0x1f
+                v = -(high * 256 + low + 1) * 0.26855 + 2600
+            else:
+                v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
+        self.BATTERY_V = v
+        # print("current %d mV" % v)
+        self.logger(str(v/1000))
+        return v
 
 
     #zero版本读取电池电流
@@ -340,17 +398,12 @@ class PiSugarCore:
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa4)
             high = bus.read_byte_data(self.BAT_ADDRESS, 0xa5)
-            # print(bin(high))
-            # print(bin(low))
             if high & 0x20:
                 low = ~low & 0xff
                 high = (~high) & 0x1f
-                # print(bin(high))
-                # print(bin(low))
                 i = -(high * 256 + low + 1) * 0.745985
             else:
                 i = ((high & 0x1f) * 256 + low + 1) * 0.745985
-        # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
 
@@ -359,19 +412,12 @@ class PiSugarCore:
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa2)
             high = bus.read_byte_data(self.BAT_ADDRESS, 0xa3)
-            # print(bin(high))
-            # print(bin(low))
             if high & 0x20:
                 low = ~low & 0xff
                 high = (~high) & 0x1f
-            # print(bin(high))
-            # print(bin(low))
                 v = -(high * 256 + low + 1) * 0.26855 + 2600
             else:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
-        # print("votage %d mV" % v)
-        if v != 0:
-            self.BATTERY_MODEL = "PiSugar 2"
         self.BATTERY_V = v
         return v
 
@@ -396,6 +442,7 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
+
     #P版本关机轻载阈值设定，SYSI总电流，不会随电池电压降低而增加
     def battery_shutdown_threshold_set_P(self):
         with SMBus(1) as bus:
@@ -412,6 +459,7 @@ class PiSugarCore:
             t = t | 0b01000000
             t = t & 0b01111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x07, t)
+
 
     #P版本强制关机，主要用于解决树莓派关机后轻载电流依然过大的问题
     def battery_force_shutdown_P(self):
@@ -499,6 +547,15 @@ class PiSugarCore:
             self.execute_shell_async("sudo shutdown now")
         threading.Timer(self.UPDATE_INTERVAL, self.battery_loop).start()
 
+    def battery_loop_P(self):
+        self.BATTERY_I = self.read_battery_i_P()
+        self.BATTERY_V = self.read_battery_v_P()
+        self.BATTERY_LEVEL = self.get_battery_percent()
+        self.battery_shutdown_threshold_set()
+        if self.BATTERY_LEVEL < self.AUTO_SHUTDOWN_PERCENT:
+            self.execute_shell_async("sudo shutdown now")
+        threading.Timer(self.UPDATE_INTERVAL, self.battery_loop_P).start()
+
     def rtc_loop(self):
         try:
             self.read_time()
@@ -582,7 +639,6 @@ class PiSugarCore:
 
     #检测硬件版本
     def get_model(self):
-
         return self.BATTERY_MODEL
 
     def set_test_wake(self):
@@ -600,7 +656,7 @@ class PiSugarCore:
             current_time[2] = current_time[2] + 1
         self.set_rtc_alarm(current_time, 0b0111111)
 
-    def dumpData(self):
+    def dump_data(self):
         # save data to local file
         data_to_save = {
             'autoWakeType': self.AUTO_WAKE_TYPE,
@@ -656,7 +712,7 @@ class PiSugarCore:
             self.DOUBLE_TAP_ENABLE = is_enable
         if button_type == "long":
             self.LONG_TAP_ENABLE = is_enable
-        self.dumpData()
+        self.dump_data()
 
     def get_button_shell(self, button_type):
         if button_type == "single":
@@ -673,11 +729,11 @@ class PiSugarCore:
             self.DOUBLE_TAP_SHELL = shell
         if button_type == "long":
             self.LONG_TAP_SHELL = shell
-        self.dumpData()
+        self.dump_data()
 
     def set_safe_shutdown_level(self, percent):
         self.AUTO_SHUTDOWN_PERCENT = percent
-        self.dumpData()
+        self.dump_data()
 
     def get_safe_shutdown_level(self):
         return self.AUTO_SHUTDOWN_PERCENT
@@ -701,15 +757,25 @@ class PiSugarCore:
         else:
             print('Empty shell!')
 
+    def logger(self, log):
+        localtime = time.asctime(time.localtime(time.time()))
+        f = open('/home/pi/pisugar_log.txt', 'a+')
+        new = str(localtime) + " : " + log + "\n"
+        # print(new)
+        f.write(new)
+        f.flush()
+        f.close()
+
 
 if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
-    #core.sync_time_pi2rtc()
-    core.battery_shutdown_threshold_set_P()
-    while (1):
-        core.read_sys_i_P()
-        time.sleep(1)
+
+    # core.battery_shutdown_threshold_set_P()
+    # while (1):
+    #     core.read_sys_i_P()
+    #     time.sleep(1)
+
     # wake up after 1 min 30 sec
     #core.set_test_wake()
     #core.battery_force_shutdown_P()
