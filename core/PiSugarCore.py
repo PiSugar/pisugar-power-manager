@@ -279,6 +279,7 @@ class PiSugarCore:
             # 屏蔽判断位
             block[2] = block[2] & 0b01111111
             time_ic = self.__bcd2ten_list(block)
+            self.logger(str(time_ic))
             self.RTC_TIME = self.__bcd2time(block)
             # print("System time：", self.__time2ten(time.localtime(time.time())))
             # print("RTC time", time.strftime("%Y--%m--%d %H:%M:%S", time_ic))
@@ -561,7 +562,7 @@ class PiSugarCore:
             self.read_time()
         except ValueError as error:
             print(error)
-            self.logger(error)
+            self.logger('rtc time error')
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
 
     def gpio_loop(self):
