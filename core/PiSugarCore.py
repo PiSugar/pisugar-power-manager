@@ -706,10 +706,14 @@ if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
     #core.sync_time_pi2rtc()
-    core.battery_shutdown_threshold_set_P()
     while (1):
-        print(core.read_time())
-        core.read_sys_i_P()
+        test = open("test.txt", "a+")
+        for i in core.read_time():
+            test.write(str(i))
+            test.write(" ")
+        test.write(str(core.read_battery_v()))
+        test.write("\n")
+        test.close()
         time.sleep(1)
     # wake up after 1 min 30 sec
     #core.set_test_wake()
