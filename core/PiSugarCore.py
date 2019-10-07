@@ -708,6 +708,7 @@ if __name__ == "__main__":
     #core.sync_time_pi2rtc()
     core.battery_shutdown_threshold_set_P()
     while (1):
+        print(core.read_time())
         core.read_sys_i_P()
         time.sleep(1)
     # wake up after 1 min 30 sec
