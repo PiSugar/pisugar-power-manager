@@ -770,12 +770,6 @@ class PiSugarCore:
 if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
-
-    # core.battery_shutdown_threshold_set_P()
-    # while (1):
-    #     core.read_sys_i_P()
-    #     time.sleep(1)
-
     # wake up after 1 min 30 sec
     #core.set_test_wake()
     #core.battery_force_shutdown_P()
