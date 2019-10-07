@@ -561,6 +561,7 @@ class PiSugarCore:
             self.read_time()
         except ValueError as error:
             print(error)
+            self.logger(error)
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
 
     def gpio_loop(self):
