@@ -22,6 +22,7 @@ class PiSugarCore:
     BATTERY_I = 0
     BATTERY_V = 0
     BATTERY_MODEL = ""
+    SYS_I = 0
     RTC_ADDRESS = 0x32
     BAT_ADDRESS = 0x75
     CTR1 = 0x0f
@@ -97,6 +98,7 @@ class PiSugarCore:
                 print(e)
 
         try:
+            self.sync_time_web()
             self.clean_alarm_flag()
             self.rtc_loop()
             self.IS_RTC_ALIVE = True
@@ -174,6 +176,7 @@ class PiSugarCore:
         ]
         return bcd
 
+    #关闭RTC只读保护
     def __disable_rtc_write_protect(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
@@ -184,6 +187,7 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR1, ct)
         return
 
+    #开启RTC只读保护
     def __enable_rtc_write_protect(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -198,6 +202,8 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
         return
 
+
+    #读取RTC时钟中断信息
     def read_alarm_flag(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -210,6 +216,7 @@ class PiSugarCore:
                 return 1
             return 0
 
+    #清除时钟中断信息
     def clean_alarm_flag(self):
         print("Clean clock flag.")
         if self.read_alarm_flag() == 1:
@@ -225,6 +232,7 @@ class PiSugarCore:
                 self.__enable_rtc_write_protect()
         return
 
+    #将树莓派的系统时间同步到rtc
     def sync_time_pi2rtc(self):
         print("Syncing Pi time to RTC...")
         with SMBus(1) as bus:
@@ -243,12 +251,14 @@ class PiSugarCore:
             self.__enable_rtc_write_protect()
         return
 
+    #将rtc的时间同步到树莓派系统
     def sync_time_rtc2pi(self):
         print ("Syncing RTC time to Pi...")
         time_string = time.strftime("%Y-%m-%d %H:%M:%S", self.RTC_TIME)
         os.system('sudo date -s "%s"' % time_string)
         print (time_string)
 
+    #和网络服务器同步时间
     def sync_time_web(self):
         print ("Syncing Web time to RTC & Pi...")
         try:
@@ -271,7 +281,7 @@ class PiSugarCore:
             print (e)
             return None
 
-
+    #读取rtc时间
     def read_time(self):
         with SMBus(1) as bus:
             block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0, 7)
@@ -291,8 +301,8 @@ class PiSugarCore:
         return self.RTC_TIME
 
     '''
+    设置RTC唤醒时间
     set_rtc_alarm
-    
     clock_time 
     [sec, min, hour, week, day, month, year]
     ep. [10, 1, 16, 4, 30, 12, 19] -> 16:01:10 Thu 2019-12-05
@@ -361,11 +371,11 @@ class PiSugarCore:
         self.dump_data()
 
 
-    #P版本读取SYS电流
-    def read_battery_i_P(self):
+    #P版本读取sys电流
+    def read_sys_i_P(self):
         with SMBus(1) as bus:
-            low = bus.read_byte_data(self.BAT_ADDRESS, 0x6a)
-            high = bus.read_byte_data(self.BAT_ADDRESS, 0x6b)
+            low = bus.read_byte_data(self.BAT_ADDRESS, 0x6A)
+            high = bus.read_byte_data(self.BAT_ADDRESS, 0x6B)
             if high & 0x20:
                 low = ~low & 0xff
                 high = (~high) & 0x1f
@@ -373,11 +383,26 @@ class PiSugarCore:
             else:
                 i = ((high & 0x1f) * 256 + low + 1) * 0.6394
         # print("current %d mA" % i)
+        self.SYS_I = i
+        return i
+
+    #P版本读取电池电流
+    def read_battery_i_P(self):
+        with SMBus(1) as bus:
+            low = bus.read_byte_data(self.BAT_ADDRESS, 0x66)
+            high = bus.read_byte_data(self.BAT_ADDRESS, 0x67)
+            if high & 0x20:
+                low = ~low & 0xff
+                high = (~high) & 0x1f
+                i = -(high * 256 + low + 1) *1.27883
+            else:
+                i = ((high & 0x1f) * 256 + low + 1) *1.27883
+        # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
 
 
-    # P版本读取SYS电压
+    # P版本读取电池电压
     def read_battery_v_P(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0x64)
