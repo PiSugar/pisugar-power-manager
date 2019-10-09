@@ -31,7 +31,7 @@ class PiSugarCore:
     IS_PRO = True
 
     UPDATE_INTERVAL = 1
-    TIME_UPDATE_INTERVAL = 0.5
+    TIME_UPDATE_INTERVAL = 2
     GPIO_INTERVAL = 0.15
     RTC_TIME = None
     RTC_TIME_LIST = None
