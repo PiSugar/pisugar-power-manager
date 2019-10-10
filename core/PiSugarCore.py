@@ -31,7 +31,7 @@ class PiSugarCore:
     IS_PRO = True
 
     UPDATE_INTERVAL = 1
-    TIME_UPDATE_INTERVAL = 2
+    TIME_UPDATE_INTERVAL = 1
     GPIO_INTERVAL = 0.15
     RTC_TIME = None
     RTC_TIME_LIST = None
@@ -87,9 +87,9 @@ class PiSugarCore:
         else:
             try:
                 self.battery_shutdown_threshold_set()
-                self.battery_loop()
-                self.gpio_loop()
-                self.charge_check_loop()
+#                self.battery_loop()
+#                self.gpio_loop()
+#                self.charge_check_loop()
                 self.battery_gpio_set()
                 self.IS_BAT_ALIVE = True
                 self.BATTERY_MODEL = "PiSugar 2"
@@ -100,7 +100,7 @@ class PiSugarCore:
         try:
             self.sync_time_web()
             self.clean_alarm_flag()
-            self.rtc_loop()
+            #self.rtc_loop()
             self.IS_RTC_ALIVE = True
         except OSError as e:
             print("rtc i2c error...")
@@ -290,6 +290,7 @@ class PiSugarCore:
             block[2] = block[2] & 0b01111111
             time_ic = self.__bcd2ten_list(block)
             self.logger(str(time_ic))
+            print(str(time_ic))
             self.RTC_TIME = self.__bcd2time(block)
             # print("System time：", self.__time2ten(time.localtime(time.time())))
             # print("RTC time", time.strftime("%Y--%m--%d %H:%M:%S", time_ic))
@@ -589,6 +590,8 @@ class PiSugarCore:
             print(error)
             self.logger('rtc time error')
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
+        print("Start readtime threading")
+
 
     def gpio_loop(self):
         current = self.read_battery_gpio()
