@@ -28,7 +28,7 @@ class PiSugarCore:
     CTR1 = 0x0f
     CTR2 = 0x10
     CTR3 = 0x11
-    IS_PRO = True
+    IS_PRO = False
 
     UPDATE_INTERVAL = 1
     TIME_UPDATE_INTERVAL = 1
@@ -87,9 +87,9 @@ class PiSugarCore:
         else:
             try:
                 self.battery_shutdown_threshold_set()
-#                self.battery_loop()
-#                self.gpio_loop()
-#                self.charge_check_loop()
+                self.battery_loop()
+                self.gpio_loop()
+                self.charge_check_loop()
                 self.battery_gpio_set()
                 self.IS_BAT_ALIVE = True
                 self.BATTERY_MODEL = "PiSugar 2"
