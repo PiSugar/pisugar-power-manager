@@ -14,7 +14,7 @@ pip3 install smbus websockets
 
 ```
 
-Start the core without UI:
+Start the core with Web UI:
 ```
 $ python3 core/PiSugarCore.py
 
@@ -59,7 +59,7 @@ Done.
 
 ```
 
-Start with UI:
+Start with Destop UI (not finished yet):
 ```
 $ export DISPLAY=:0
 $ python3 app.py
