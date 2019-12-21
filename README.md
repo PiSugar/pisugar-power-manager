@@ -15,7 +15,7 @@ Install
 # make sure your python version is 3.6
 
 # check if device 0x32 and 0x75 work. 
-# If you can't find them or find some meaningless random code, please turn off reattach the battery module and try again. 
+# If you can't find them or find some meaningless random code, please reattach the battery module and try again. 
 i2cdetect -y 1
 i2cdump -y 1 0x32
 i2cdump -y 1 0x75
