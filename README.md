@@ -9,6 +9,7 @@
 Install
 ```
 # before installation
+
 # turn on the i2c interface on raspbian.
 # make sure there's no other phat using address 0x32 or 0x75
 # make sure your python version is 3.6
