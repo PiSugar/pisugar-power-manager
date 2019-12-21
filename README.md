@@ -8,6 +8,18 @@
 
 Install
 ```
+# before installation
+# turn on the i2c interface on raspbian.
+# make sure there's no other phat using address 0x32 or 0x75
+# make sure your python version is 3.6
+
+# check if device 0x32 and 0x75 work. 
+# If you can't find them or find some meaningless random code, please turn off reattach the battery module and try again. 
+i2cdetect -y 1
+i2cdump -y 1 0x32
+i2cdump -y 1 0x75
+
+# install
 apt-get update
 apt-get install python3-pyqt5 pyqt5-dev-tools
 pip3 install smbus2 websockets
