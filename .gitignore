@@ -1,9 +1,24 @@
+# python
 *.pyc
+*.pyo
 __pycache__
-.vscode/
-.idea/*
-PiSugarCore/.idea/*
+.tox/
+venv/
+.venv/
+env/
+.env/
+
+# other
 core/test.py
-venv/*
+
+# Jetbrains IDE
+.idea/
 *.xml
 *.iml
+
+# vscode
+.vscode/
+
+# macos
+.DS_Store
+Thumbs.db
