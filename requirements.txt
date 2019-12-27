@@ -1,0 +1,2 @@
+smbus2==0.3.0
+websockets==8.1

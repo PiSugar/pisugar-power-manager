@@ -1,4 +1,6 @@
-
+*.pyc
+__pycache__
+.vscode/
 .idea/*
 PiSugarCore/.idea/*
 core/test.py
