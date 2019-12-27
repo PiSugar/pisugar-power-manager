@@ -22,13 +22,14 @@ class PiSugarServer:
         self.CORE = core
         self.create_ws_server()
         self.create_http_server()
-        threading.Thread(name="server_thread_shell", target=self.socket_server, args=(self.SERVER_ADDRESS, True)).start()
+        threading.Thread(name="server_thread_shell", target=self.socket_server,
+                         args=(self.SERVER_ADDRESS, True)).start()
         # t2 = threading.Thread(name="server_thread_http", target=self.create_http_server)
 
     # def kill_port(self, port):
-    #     command = '''kill -9 $(netstat -nlp | grep :''' + str(port) + ''' | awk '{print $7}' | awk -F"/" '{ print $1 }')'''
-        # print(command)
-        # os.system(command)
+    #     command = '''kill -9 $(netstat -nlp | grep :''' + str(port) + ''' | awk '{print $7}' | awk -F"/" '{ print $1 }')''' # noqa
+    # print(command)
+    # os.system(command)
 
     def socket_server(self, server_address, once):
         try:
@@ -129,7 +130,9 @@ class PiSugarServer:
                     argv2 = req_arr[2]
                     time_arr = list(map(int, argv1.split(",")))
                     week_repeat = int(argv2, 2)
-                    self.CORE.set_rtc_alarm([time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]], week_repeat)
+                    self.CORE.set_rtc_alarm(
+                        [time_arr[0], time_arr[1], time_arr[2], time_arr[3], time_arr[4], time_arr[5], time_arr[6]],
+                        week_repeat)
                     self.CORE.clean_alarm_flag()
                     res_str = req_arr[0] + ": done"
                 except Exception as e:

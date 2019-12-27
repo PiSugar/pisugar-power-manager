@@ -27,3 +27,13 @@ Activate
 Install development dependencies:
 
     pip3 install -r requirements-dev.txt
+
+## Before commit
+
+Auto fix code style with yapf
+
+    yapf --recursive app.py core
+
+Check code style with flake8
+
+    tox -e pep8

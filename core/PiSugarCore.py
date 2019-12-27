@@ -1,5 +1,4 @@
 # -*-coding:utf-8-*-
-# coding: utf-8
 
 import time
 import threading
@@ -69,7 +68,7 @@ class PiSugarCore:
             if v == 0:
                 self.IS_PRO = False
             v = self.read_battery_v_P()
-            if v== 0:
+            if v == 0:
                 self.IS_PRO = True
         except OSError as e:
             print(e)
@@ -176,18 +175,18 @@ class PiSugarCore:
         ]
         return bcd
 
-    #关闭RTC只读保护
+    # 关闭RTC只读保护
     def __disable_rtc_write_protect(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR2)
             ct = ct | 0b10000000
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
-            ct = ct|0b10000100
+            ct = ct | 0b10000100
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR1, ct)
         return
 
-    #开启RTC只读保护
+    # 开启RTC只读保护
     def __enable_rtc_write_protect(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -202,8 +201,7 @@ class PiSugarCore:
             bus.write_byte_data(self.RTC_ADDRESS, self.CTR2, ct)
         return
 
-
-    #读取RTC时钟中断信息
+    # 读取RTC时钟中断信息
     def read_alarm_flag(self):
         with SMBus(1) as bus:
             ct = bus.read_byte_data(self.RTC_ADDRESS, self.CTR1)
@@ -216,7 +214,7 @@ class PiSugarCore:
                 return 1
             return 0
 
-    #清除时钟中断信息
+    # 清除时钟中断信息
     def clean_alarm_flag(self):
         print("Clean clock flag.")
         if self.read_alarm_flag() == 1:
@@ -232,7 +230,7 @@ class PiSugarCore:
                 self.__enable_rtc_write_protect()
         return
 
-    #将树莓派的系统时间同步到rtc
+    # 将树莓派的系统时间同步到rtc
     def sync_time_pi2rtc(self):
         print("Syncing Pi time to RTC...")
         with SMBus(1) as bus:
@@ -251,37 +249,37 @@ class PiSugarCore:
             self.__enable_rtc_write_protect()
         return
 
-    #将rtc的时间同步到树莓派系统
+    # 将rtc的时间同步到树莓派系统
     def sync_time_rtc2pi(self):
-        print ("Syncing RTC time to Pi...")
+        print("Syncing RTC time to Pi...")
         time_string = time.strftime("%Y-%m-%d %H:%M:%S", self.RTC_TIME)
         os.system('sudo date -s "%s"' % time_string)
-        print (time_string)
+        print(time_string)
 
-    #和网络服务器同步时间
+    # 和网络服务器同步时间
     def sync_time_web(self):
-        print ("Syncing Web time to RTC & Pi...")
+        print("Syncing Web time to RTC & Pi...")
         try:
             conn = http.client.HTTPConnection(self.TIME_HOST)
             conn.request("GET", "/")
             r = conn.getresponse()
             ts = r.getheader('date')
-            print (ts)
+            print(ts)
             ltime = time.strptime(ts[5:25], "%d %b %Y %H:%M:%S")
             ttime = time.localtime(time.mktime(ltime) + 8 * 60 * 60)
             time_string = time.strftime("%Y-%m-%d %H:%M:%S", ttime)
-            print (time_string)
+            print(time_string)
             tm = "date -s \"%s\"" % time_string
             os.system(tm)
             print("Update system time successfully!")
             self.sync_time_pi2rtc()
             print("Sync time Pi => RTC successfully!")
         except EnvironmentError as e:
-            print ("Sync web time except")
-            print (e)
+            print("Sync web time except")
+            print(e)
             return None
 
-    #读取rtc时间
+    # 读取rtc时间
     def read_time(self):
         with SMBus(1) as bus:
             block = bus.read_i2c_block_data(self.RTC_ADDRESS, 0, 7)
@@ -301,18 +299,15 @@ class PiSugarCore:
     def get_rtc_time(self):
         return self.RTC_TIME
 
-    '''
-    设置RTC唤醒时间
-    set_rtc_alarm
-    clock_time 
-    [sec, min, hour, week, day, month, year]
-    ep. [10, 1, 16, 4, 30, 12, 19] -> 16:01:10 Thu 2019-12-05
-    
-    week_day_repeat
-    ep. 0b00000111 -> repeat alarm on Tue, Mon, Sun 
-    '''
-
     def set_rtc_alarm(self, clock_time, week_repeat):
+        '''设置RTC唤醒时间
+
+        :param clock_time: [sec, min, hour, week, day, month, year], e.g. [10, 1, 16, 4, 30, 12, 19] ->
+                           16:01:10 Thu 2019-12-05
+        :type clock_time: list
+        :param week_day_repeat: a byte, e.g. 0b00000111 -> repeat alarm on Tue, Mon, Sun
+        :param week_day_repeat: byte
+        '''
         print("预计开机时间：", clock_time)
         bcd = self.__ten2bcd_list(clock_time)
         bcd[3] = week_repeat
@@ -371,8 +366,7 @@ class PiSugarCore:
             self.__enable_rtc_write_protect()
         self.dump_data()
 
-
-    #P版本读取sys电流
+    # P版本读取sys电流
     def read_sys_i_P(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0x6A)
@@ -387,7 +381,7 @@ class PiSugarCore:
         self.SYS_I = i
         return i
 
-    #P版本读取电池电流
+    # P版本读取电池电流
     def read_battery_i_P(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0x66)
@@ -395,13 +389,12 @@ class PiSugarCore:
             if high & 0x20:
                 low = ~low & 0xff
                 high = (~high) & 0x1f
-                i = -(high * 256 + low + 1) *1.27883
+                i = -(high * 256 + low + 1) * 1.27883
             else:
-                i = ((high & 0x1f) * 256 + low + 1) *1.27883
+                i = ((high & 0x1f) * 256 + low + 1) * 1.27883
         # print("current %d mA" % i)
         self.BATTERY_I = i
         return i
-
 
     # P版本读取电池电压
     def read_battery_v_P(self):
@@ -416,11 +409,10 @@ class PiSugarCore:
                 v = ((high & 0x1f) * 256 + low + 1) * 0.26855 + 2600
         self.BATTERY_V = v
         # print("current %d mV" % v)
-        self.logger(str(v/1000))
+        self.logger(str(v / 1000))
         return v
 
-
-    #zero版本读取电池电流
+    # zero版本读取电池电流
     def read_battery_i(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa4)
@@ -434,7 +426,7 @@ class PiSugarCore:
         self.BATTERY_I = i
         return i
 
-    #zero版本读取电池电压
+    # zero版本读取电池电压
     def read_battery_v(self):
         with SMBus(1) as bus:
             low = bus.read_byte_data(self.BAT_ADDRESS, 0xa2)
@@ -448,7 +440,7 @@ class PiSugarCore:
         self.BATTERY_V = v
         return v
 
-    #Zero版本设置关机阈值
+    # Zero版本设置关机阈值
     def battery_shutdown_threshold_set(self):
         with SMBus(1) as bus:
 
@@ -469,8 +461,7 @@ class PiSugarCore:
             t = t | 0b00000011
             bus.write_byte_data(self.BAT_ADDRESS, 0x02, t)
 
-
-    #P版本关机轻载阈值设定，SYSI总电流，不会随电池电压降低而增加
+    # P版本关机轻载阈值设定，SYSI总电流，不会随电池电压降低而增加
     def battery_shutdown_threshold_set_P(self):
         with SMBus(1) as bus:
 
@@ -487,8 +478,7 @@ class PiSugarCore:
             t = t & 0b01111111
             bus.write_byte_data(self.BAT_ADDRESS, 0x07, t)
 
-
-    #P版本强制关机，主要用于解决树莓派关机后轻载电流依然过大的问题
+    # P版本强制关机，主要用于解决树莓派关机后轻载电流依然过大的问题
     def battery_force_shutdown_P(self):
         with SMBus(1) as bus:
             # 开启强制关机开关
@@ -500,7 +490,6 @@ class PiSugarCore:
             t = bus.read_byte_data(self.BAT_ADDRESS, 0x5B)
             t = t & 0b11101111
             bus.write_byte_data(self.BAT_ADDRESS, 0x5B, t)
-
 
     def battery_gpio_set(self):
         with SMBus(1) as bus:
@@ -527,7 +516,7 @@ class PiSugarCore:
             self.gpio_tap_detect(t)
             return t
 
-    #Zero版本检测按下
+    # Zero版本检测按下
     def gpio_tap_detect(self, tap):
         if tap > 0:
             tap = 1
@@ -590,7 +579,6 @@ class PiSugarCore:
             print(error)
             self.logger('rtc time error')
         threading.Timer(self.TIME_UPDATE_INTERVAL, self.rtc_loop).start()
-
 
     def gpio_loop(self):
         current = self.read_battery_gpio()
@@ -662,11 +650,12 @@ class PiSugarCore:
         batter_level = 0
         for range in batter_curve:
             if range[0] < self.BATTERY_V / 1000 <= range[1]:
-                batter_level = ((self.BATTERY_V / 1000 - range[0]) / (range[1] - range[0])) * (range[3] - range[2]) + range[2]
+                level_base = ((self.BATTERY_V / 1000 - range[0]) / (range[1] - range[0])) * (range[3] - range[2])
+                batter_level = level_base + range[2]
         self.BATTERY_LEVEL = batter_level
         return batter_level
 
-    #检测硬件版本
+    # 检测硬件版本
     def get_model(self):
         return self.BATTERY_MODEL
 
@@ -777,7 +766,7 @@ class PiSugarCore:
         return self.AUTO_WAKE_REPEAT
 
     def execute_shell_async(self, shell):
-        threading.Thread(name="execute_shell", target=self.execute_shell, args=(shell,)).start()
+        threading.Thread(name="execute_shell", target=self.execute_shell, args=(shell, )).start()
 
     def execute_shell(self, shell):
         if shell != '':
@@ -800,5 +789,5 @@ if __name__ == "__main__":
 
     core = PiSugarCore(local=True)
     # wake up after 1 min 30 sec
-    #core.set_test_wake()
-    #core.battery_force_shutdown_P()
+    # core.set_test_wake()
+    # core.battery_force_shutdown_P()
