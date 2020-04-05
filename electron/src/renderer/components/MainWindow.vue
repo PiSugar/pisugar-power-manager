@@ -42,7 +42,7 @@
         </el-row>
         <div class="title">Custom Button Function</div>
         <el-row>
-          <el-form ref="buttonFuncFormSingle" :model="buttonFuncForm.single" label-width="80px">
+          <el-form ref="buttonFuncFormSingle" :model="buttonFuncForm.single" label-width="90px">
             <el-form-item label="Single Tap">
               <el-select v-model="buttonFuncForm.single.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('single')">
                 <el-option
@@ -58,7 +58,7 @@
           </el-form>
         </el-row>
         <el-row>
-          <el-form ref="buttonFuncFormDouble" :model="buttonFuncForm.double" label-width="80px">
+          <el-form ref="buttonFuncFormDouble" :model="buttonFuncForm.double" label-width="90px">
             <el-form-item label="Double Tap">
               <el-select v-model="buttonFuncForm.double.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('double')">
                 <el-option
@@ -74,7 +74,7 @@
           </el-form>
         </el-row>
         <el-row>
-          <el-form ref="buttonFuncFormLong" :model="buttonFuncForm.long" label-width="80px">
+          <el-form ref="buttonFuncFormLong" :model="buttonFuncForm.long" label-width="90px">
             <el-form-item label="Long Tap">
               <el-select v-model="buttonFuncForm.long.func" placeholder="Select" :disabled="!socketConnect" @change="buttonFuncChange('long')">
                 <el-option
@@ -169,7 +169,7 @@
         model: '...',
         alarmOption: [
           { label: 'Disabled', value: 0 },
-          { label: 'TimeSet', value: 1 }
+          { label: 'Enabled', value: 1 }
           // { label: 'CircleSet', value: 2 }
         ],
         alarmOptionValue: 0,
@@ -219,13 +219,12 @@
         editShellDialog: false,
         editShellDialogCache: "",
         editShellDialogForm: {},
-        safeShutdown: -1,
+        safeShutdown: 0,
         safeShutdownOpts: [
-          { label: 'Disabled', value: -1 },
-          { label: '0%', value: 0 },
-          { label: '< 1%', value: 1 },
-          { label: '< 3%', value: 3 },
-          { label: '< 5%', value: 5 }
+          { label: 'Disabled', value: 0 },
+          { label: '<= 1%', value: 1 },
+          { label: '<= 3%', value: 3 },
+          { label: '<= 5%', value: 5 }
         ],
         timeDialog: false
       }
@@ -289,7 +288,7 @@
             that.batteryPercent = parseInt(msg.replace('battery: ', ''))
           }
           if (!msg.indexOf('battery_charging: ')) {
-            that.batteryCharging = msg.indexOf('True') > 0
+            that.batteryCharging = msg.indexOf('true') > 0
           }
           if (!msg.indexOf('rtc_time: ')) {
             msg = msg.replace('rtc_time: ', '')
@@ -297,7 +296,7 @@
             that.rtcUpdateTime = new Date().getTime()
           }
           if (!msg.indexOf('rtc_alarm_enabled: ')) {
-            that.alarmOptionValue = (msg.replace('alarm_type: ', '').trim() === 'true') ? 1 : 0
+            that.alarmOptionValue = (msg.replace('rtc_alarm_enabled: ', '').trim() === 'true') ? 1 : 0
           }
           if (!msg.indexOf('rtc_alarm_time: ')) {
             const timeArray = JSON.parse(msg.replace('rtc_alarm_time: ', ''))
@@ -308,7 +307,9 @@
             that.timeEditValue = tempTime
           }
           if (!msg.indexOf('alarm_repeat: ')) {
-            that.timeRepeat = parseInt(msg.replace('alarm_repeat: ', ''))
+            const alarmRepeat = parseInt(msg.replace('alarm_repeat: ', ''))
+            that.timeRepeat = alarmRepeat ? alarmRepeat : 127
+            that.timeRepeat2checkbox()
           }
           if (!msg.indexOf('safe_shutdown_level: ')) {
             that.safeShutdown = parseInt(msg.replace('safe_shutdown_level: ', ''))
@@ -417,8 +418,13 @@
         let sec = this.timeEditValue.getSeconds()
         let min = this.timeEditValue.getMinutes()
         let hour = this.timeEditValue.getHours()
-        if (this.timeRepeat === 0) this.timeRepeat = parseInt('1111111', 2)
+        if (this.timeRepeat === 0) this.timeRepeat = 127
         this.$socket.send(`rtc_alarm_set ${sec},${min},${hour},0,11,8,19 ${this.timeRepeat}`)
+      },
+      timeRepeat2checkbox () {
+        const weekdays = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday']
+        const repeatString = this.timeRepeat.toString(2).split('')
+        this.checkRepeat = repeatString.map((i, k) => (i == '1') ? weekdays[k] : null).filter(i => i !== null)
       },
       checkRepeatAllChange (value) {
         if (value) {
@@ -427,17 +433,11 @@
         }
       },
       checkRepeatChange () {
-        let weekdays = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday']
-        let weekdayArray = '0000000'.split('').map(i => parseInt(i))
-        weekdays.map((item, index) => {
-          if (this.checkRepeat.indexOf(item) > -1) weekdayArray[index] = 1
-        })
-        if (weekdayArray.join('') === '1111111') {
-          this.checkRepeatAll = true
-        } else {
-          this.checkRepeatAll = false
-        }
-        this.timeRepeat = parseInt(weekdayArray.join(''), 2)
+        const weekdays = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday']
+        const repeatArray = weekdays.map(i => this.checkRepeat.indexOf(i) >= 0 ? 1 : 0)
+        this.checkRepeatAll = repeatArray.filter(i => i).length === 7
+        this.timeRepeat = parseInt(repeatArray.join(''), 2)
+        this.timeEditChange()
       },
       buttonFuncChange (type) {
         let button = this.buttonFuncForm[type]
@@ -469,17 +469,11 @@
           this.$socket.send('rtc_alarm_disable')
         }
       }
-    },
-    watch: {
-      checkRepeat (val, oldVal) {
-        this.timeEditChange()
-      }
     }
   }
 </script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
   @keyframes show-once {
     0% {
       opacity: 0;
