@@ -474,7 +474,6 @@
 </script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
   @keyframes show-once {
     0% {
       opacity: 0;
