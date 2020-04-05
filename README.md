@@ -5,6 +5,7 @@
 </p>
 
 ### Management program for PiSugar 2
+#### Note: python version will be deprecated, we will soon migrant to rust.
 
 Install
 ```
