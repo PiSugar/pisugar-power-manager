@@ -184,7 +184,7 @@
         buttonFuncForm: {
           single: {
             type: 'single',
-            enable: 0,
+            enable: false,
             func: 0,
             shell: '',
             options: [
@@ -194,7 +194,7 @@
           },
           double: {
             type: 'double',
-            enable: 0,
+            enable: false,
             func: 0,
             shell: '',
             options: [
@@ -205,7 +205,7 @@
           },
           long: {
             type: 'long',
-            enable: 0,
+            enable: false,
             func: 0,
             shell: '',
             options: [
@@ -222,6 +222,7 @@
         safeShutdown: -1,
         safeShutdownOpts: [
           { label: 'Disabled', value: -1 },
+          { label: '0%', value: 0 },
           { label: '< 1%', value: 1 },
           { label: '< 3%', value: 3 },
           { label: '< 5%', value: 5 }
@@ -248,7 +249,7 @@
           repeatString = '0000000'.substring(0, 7 - repeatString.length) + repeatString
           let repeatMessage = ''
           if (repeatString == '0000000') {
-            repeatMessage = 'no repeat.'
+            repeatMessage = 'repeat everyday.'
           } else if (repeatString == '1111111') {
             repeatMessage = 'repeat everyday.'
           } else{
@@ -271,7 +272,6 @@
     methods: {
       createWebSocketClient () {
         const that = this
-        console.log(this.$socket)
         this.$socket.onopen = function () {
           console.log(`[Websocket CLIENT] open()`)
           that.getBatteryInfo(true)
@@ -280,43 +280,60 @@
       bindSocket () {
         const that = this
         this.$socket.onmessage = async function (e) {
-          let message = await that.blob2String(e.data)
-          if (message.indexOf('battery') < 0) console.log(message)
-          if (message.indexOf('model:') > -1) {
-            that.model = message.replace('model: ', '')
+          let msg = e.data
+          if (msg.indexOf('battery') < 0) console.log(msg)
+          if (msg.indexOf('model:') > -1) {
+            that.model = msg.replace('model: ', '')
           }
-          if (!message.indexOf('battery:')) {
-            that.batteryPercent = parseInt(message.replace('battery: ', ''))
+          if (!msg.indexOf('battery:')) {
+            that.batteryPercent = parseInt(msg.replace('battery: ', ''))
           }
-          if (!message.indexOf('battery_charging: ')) {
-            that.batteryCharging = message.indexOf('True') > 0
+          if (!msg.indexOf('battery_charging: ')) {
+            that.batteryCharging = msg.indexOf('True') > 0
           }
-          if (!message.indexOf('rtc_time: ')) {
-            message = message.replace('rtc_time: ', '')
-            that.rtcTime = new Date(message)
+          if (!msg.indexOf('rtc_time: ')) {
+            msg = msg.replace('rtc_time: ', '')
+            that.rtcTime = new Date(msg)
             that.rtcUpdateTime = new Date().getTime()
           }
-          if (!message.indexOf('alarm_type: ')) {
-            that.alarmOptionValue = parseInt(message.replace('alarm_type: ', ''))
+          if (!msg.indexOf('rtc_alarm_enabled: ')) {
+            that.alarmOptionValue = (msg.replace('alarm_type: ', '').trim() === 'true') ? 1 : 0
           }
-          if (!message.indexOf('alarm_time: ')) {
-            let timestamp = parseInt(message.replace('alarm_time: ', ''))
-            that.timeEditValue = new Date(timestamp * 1000)
+          if (!msg.indexOf('rtc_alarm_time: ')) {
+            const timeArray = JSON.parse(msg.replace('rtc_alarm_time: ', ''))
+            const tempTime = new Date()
+            tempTime.setSeconds(timeArray[0])
+            tempTime.setMinutes(timeArray[1])
+            tempTime.setHours(timeArray[2])
+            that.timeEditValue = tempTime
           }
-          if (!message.indexOf('alarm_repeat: ')) {
-            that.timeRepeat = parseInt(message.replace('alarm_repeat: ', ''))
+          if (!msg.indexOf('alarm_repeat: ')) {
+            that.timeRepeat = parseInt(msg.replace('alarm_repeat: ', ''))
           }
-          if (!message.indexOf('safe_shutdown_level: ')) {
-            that.safeShutdown = parseInt(message.replace('safe_shutdown_level: ', ''))
+          if (!msg.indexOf('safe_shutdown_level: ')) {
+            that.safeShutdown = parseInt(msg.replace('safe_shutdown_level: ', ''))
           }
-          if (!message.indexOf('button_event: ')) {
-            if (message.indexOf('single') > -1) {
+          if (!msg.indexOf('button_enable')) {
+            let msgArr = msg.split(' ')
+            that.buttonFuncForm[msgArr[1]].enable = (msgArr[2].trim() === 'true')
+          }
+          if (!msg.indexOf('button_shell')) {
+            let msgArr = msg.split(' ')
+            let shell = msg.replace(msgArr[0] + ' ' + msgArr[1] + ' ', '').replace('\n', '')
+            let button = that.buttonFuncForm[msgArr[1]]
+            button.shell = shell
+            if (button.enable) {
+              button.func = shell === 'sudo shutdown now' ? 2 : 1
+            }
+          }
+          if (['single', 'double', 'long'].indexOf(msg) >= 0) {
+            if (msg === 'single') {
               that.singleTrigger = false
             }
-            if (message.indexOf('double') > -1) {
+            if (msg === 'double') {
               that.doubleTrigger = false
             }
-            if (message.indexOf('long') > -1) {
+            if (msg === 'long') {
               that.longTrigger = false
             }
             setTimeout(()=> {
@@ -325,32 +342,17 @@
               that.longTrigger = true
             }, 100)
           }
-          if (!message.indexOf('button_enable')) {
-            let msgArr = message.split(' ')
-            that.buttonFuncForm[msgArr[1]].enable = parseInt(msgArr[2])
-            that.buttonFuncForm[msgArr[1]].func = parseInt(msgArr[2])
-          }
-          if (!message.indexOf('button_shell')) {
-            let msgArr = message.split(' ')
-            let shell = message.replace(msgArr[0] + ' ' + msgArr[1] + ' ', '').replace('\n', '')
-            let button = that.buttonFuncForm[msgArr[1]]
-            button.shell = shell
-            if (button.enable && shell === 'sudo shutdown now') {
-              button.func = 2
-            }
-          }
         }
       },
       getBatteryInfo (loop) {
         const that = this
         if (this.$socket.readyState === 1) {
           if (!this.socketConnect) {
-            console.log('bind socket')
             this.bindSocket()
             this.$socket.send('get model')
             this.$socket.send('get rtc_time')
-            this.$socket.send('get alarm_type')
-            this.$socket.send('get alarm_time')
+            this.$socket.send('get rtc_alarm_enabled')
+            this.$socket.send('get rtc_alarm_time')
             this.$socket.send('get alarm_repeat')
             this.$socket.send('get button_enable single')
             this.$socket.send('get button_enable double')
@@ -398,16 +400,6 @@
         }, 1000)
         this.timeDialog = false
       },
-      blob2String (blob) {
-        return new Promise((resolve, reject) => {
-          let reader = new FileReader()
-          reader.onload = function(event){
-            let content = reader.result
-            resolve(content)
-          }
-          reader.readAsText(blob)
-        })
-      },
       timeUpdater () {
         const that = this
         if (this.rtcTime) {
@@ -425,8 +417,8 @@
         let sec = this.timeEditValue.getSeconds()
         let min = this.timeEditValue.getMinutes()
         let hour = this.timeEditValue.getHours()
-        console.log(this.timeRepeat)
-        this.$socket.send(`rtc_alarm_set ${sec},${min},${hour},0,11,8,19 0b${this.timeRepeat.toString(2)}`)
+        if (this.timeRepeat === 0) this.timeRepeat = parseInt('1111111', 2)
+        this.$socket.send(`rtc_alarm_set ${sec},${min},${hour},0,11,8,19 ${this.timeRepeat}`)
       },
       checkRepeatAllChange (value) {
         if (value) {
