@@ -5,7 +5,8 @@
 </p>
 
 ### Management program for PiSugar 2
-#### Note: python version will be deprecated, we will soon migrant to rust.
+#### Note: python version will be deprecated, we had migranted to rust.
+#### https://github.com/PiSugar/pisugar-power-manager-rs
 
 Install
 ```
